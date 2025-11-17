@@ -1,8 +1,12 @@
 package com.npu.lms.controller;
 
-import com.npu.lms.entity.BorrowRecord;
 import com.npu.lms.entity.User;
 import com.npu.lms.service.RecordService;
+// 1. 引入所有必需的 DTO
+import com.npu.lms.dto.RecordDTO;
+import com.npu.lms.dto.PopularBookDTO;
+import com.npu.lms.dto.ActiveUserDTO;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,15 +23,20 @@ public class RecordController {
     @Autowired
     private RecordService recordService;
 
-    // 获取当前用户 (或全部) 的记录
+    // 2. 【修改】明确返回 List<RecordDTO>
+    //    确保前端能收到包含书名和用户名的借阅记录
     @GetMapping
-    public ResponseEntity<?> getMyRecords(@AuthenticationPrincipal User user) {
+    public ResponseEntity<List<RecordDTO>> getMyRecords(@AuthenticationPrincipal User user) {
+        // (您原来的 try-catch 逻辑可以保留，但 Service 返回类型已更改)
         try {
             return ResponseEntity.ok(recordService.getRecordsForUser(user));
         } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", e.getMessage()));
+            // 如果 user 为 null 或发生错误，返回错误信息
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
+
+    // --- (借书、预约、还书等方法保持不变) ---
 
     // 借书
     @PostMapping("/borrow")
@@ -81,5 +90,19 @@ public class RecordController {
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
+    }
+
+    // --- 3. 【修改】数据分析接口 ---
+
+    // 获取热门图书 Top 5 (返回 PopularBookDTO)
+    @GetMapping("/analysis/popular-books")
+    public ResponseEntity<List<PopularBookDTO>> getPopularBooks() {
+        return ResponseEntity.ok(recordService.getTopPopularBooks());
+    }
+
+    // 获取活跃读者 Top 5 (返回 ActiveUserDTO)
+    @GetMapping("/analysis/active-users")
+    public ResponseEntity<List<ActiveUserDTO>> getActiveUsers() {
+        return ResponseEntity.ok(recordService.getTopActiveUsers());
     }
 }

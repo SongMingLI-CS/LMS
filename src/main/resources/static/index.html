@@ -621,6 +621,8 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const loginError = ref('');
             const currentPage = ref('dashboard');
             const isSidebarOpen = ref(true);
+            const popularBooks = ref([]);
+            const activeUsers = ref([]);
 
 // 新增：注册表单
             const isRegistering = ref(false); // 控制登录/注册界面的切换
@@ -747,35 +749,35 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const totalUserCount = computed(() => users.value.length);
 
 // 数据分析统计 (基于前端数据)
-            const popularBooks = computed(() => {
-                const counts = {};
-                borrowRecords.value.forEach(r => {
-                    counts[r.bookId] = (counts[r.bookId] || 0) + 1;
-                });
-                return Object.entries(counts)
-                    .map(([bookId, count]) => ({
-                        ...getBookById(bookId),
-                        title: getBookById(bookId)?.title || '未知图书',
-                        borrowCount: count
-                    }))
-                    .sort((a, b) => b.borrowCount - a.borrowCount)
-                    .slice(0, 5);
-            });
-
-            const activeUsers = computed(() => {
-                const counts = {};
-                borrowRecords.value.forEach(r => {
-                    counts[r.userId] = (counts[r.userId] || 0) + 1;
-                });
-                return Object.entries(counts)
-                    .map(([userId, count]) => ({
-                        ...getUserById(userId),
-                        name: getUserById(userId)?.name || '未知用户',
-                        borrowCount: count
-                    }))
-                    .sort((a, b) => b.borrowCount - a.borrowCount)
-                    .slice(0, 5);
-            });
+//             const popularBooks = computed(() => {
+//                 const counts = {};
+//                 borrowRecords.value.forEach(r => {
+//                     counts[r.bookId] = (counts[r.bookId] || 0) + 1;
+//                 });
+//                 return Object.entries(counts)
+//                     .map(([bookId, count]) => ({
+//                         ...getBookById(bookId),
+//                         title: getBookById(bookId)?.title || '未知图书',
+//                         borrowCount: count
+//                     }))
+//                     .sort((a, b) => b.borrowCount - a.borrowCount)
+//                     .slice(0, 5);
+//             });
+//
+//             const activeUsers = computed(() => {
+//                 const counts = {};
+//                 borrowRecords.value.forEach(r => {
+//                     counts[r.userId] = (counts[r.userId] || 0) + 1;
+//                 });
+//                 return Object.entries(counts)
+//                     .map(([userId, count]) => ({
+//                         ...getUserById(userId),
+//                         name: getUserById(userId)?.name || '未知用户',
+//                         borrowCount: count
+//                     }))
+//                     .sort((a, b) => b.borrowCount - a.borrowCount)
+//                     .slice(0, 5);
+//             });
 
 // 模拟分析数据
             const analysisData = ref({
@@ -845,17 +847,40 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const fetchAllData = async () => {
                 isLoading.value = true;
                 try {
-                    // 并发请求所有数据
+                    // 并发请求所有数据 (新增 fetchAnalysisData)
                     await Promise.all([
                         fetchBooks(),
                         fetchUsers(),
-                        fetchRecords()
+                        fetchRecords(),
+                        fetchAnalysisData() // <--- 【关键新增点】
                     ]);
                 } catch (error) {
                     console.error("加载初始数据失败:", error);
                     showMessage('加载失败', '无法连接到服务器获取核心数据。', 'error');
                 } finally {
                     isLoading.value = false;
+                }
+            };
+
+
+            const fetchAnalysisData = async () => {
+                try {
+                    await Promise.all([
+                        // 调用新的热门图书 API
+                        api.get('/api/records/analysis/popular-books')
+                            .then(res => {
+                                popularBooks.value = res.data;
+                            }),
+
+                        // 调用新的活跃读者 API
+                        api.get('/api/records/analysis/active-users')
+                            .then(res => {
+                                activeUsers.value = res.data;
+                            })
+                    ]);
+                } catch (error) {
+                    console.error("加载分析数据失败:", error);
+                    showMessage('加载失败', '无法获取数据分析报告。', 'error');
                 }
             };
 

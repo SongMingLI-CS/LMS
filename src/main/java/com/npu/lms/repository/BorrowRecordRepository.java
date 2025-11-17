@@ -1,21 +1,36 @@
 package com.npu.lms.repository;
 
+// 引入新的 DTO
+import com.npu.lms.dto.PopularBookDTO;
+import com.npu.lms.dto.ActiveUserDTO;
 import com.npu.lms.entity.BorrowRecord;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
 import java.util.List;
 import java.util.Optional;
 
 public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long> {
 
-    // 查找某个用户的所有记录
+    // JPQL 查询 1: 热门图书 (使用 PopularBookDTO)
+    @Query("SELECT NEW com.npu.lms.dto.PopularBookDTO(b.title, COUNT(r.book.id)) " +
+            "FROM BorrowRecord r JOIN r.book b " + // JOIN r.book 隐式关联
+            "WHERE r.status = 'borrowed' " +
+            "GROUP BY b.title ORDER BY COUNT(r.book.id) DESC")
+    List<PopularBookDTO> findTop5PopularBooks(Pageable pageable); // <--- 修改返回类型
+
+
+    // JPQL 查询 2: 活跃读者 (使用 ActiveUserDTO)
+    @Query("SELECT NEW com.npu.lms.dto.ActiveUserDTO(u.name, COUNT(r.user.id)) " +
+            "FROM BorrowRecord r JOIN r.user u " + // JOIN r.user 隐式关联
+            "WHERE r.status = 'borrowed' " +
+            "GROUP BY u.name ORDER BY COUNT(r.user.id) DESC")
+    List<ActiveUserDTO> findTop5ActiveUsers(Pageable pageable); // <--- 修改返回类型
+
+    // --- 以下是您原有的方法 (保持不变) ---
     List<BorrowRecord> findByUserId(Long userId);
-
-    // 查找某个用户处于特定状态的记录 (例如：统计在借数量)
     List<BorrowRecord> findByUserIdAndStatus(Long userId, String status);
-
-    // 查找某本书的特定状态记录 (例如：查找预约)
     List<BorrowRecord> findByBookIdAndStatus(Long bookId, String status);
-
-    // 查找某个用户对某本书的特定记录 (用于还书或检查是否已借)
     Optional<BorrowRecord> findByBookIdAndUserIdAndStatus(Long bookId, Long userId, String status);
 }

@@ -6,15 +6,19 @@ import com.npu.lms.entity.User;
 import com.npu.lms.repository.BookRepository;
 import com.npu.lms.repository.BorrowRecordRepository;
 import com.npu.lms.repository.UserRepository;
-import com.npu.lms.dto.RecordDTO; // 引入 RecordDTO
+// 1. 引入所有必需的 DTO
+import com.npu.lms.dto.RecordDTO;
+import com.npu.lms.dto.PopularBookDTO;
+import com.npu.lms.dto.ActiveUserDTO;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest; // 引入 PageRequest
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors; // 引入 Collectors 用于 Stream API
+import java.util.stream.Collectors; // 引入 Collectors
 
 @Service
 public class RecordService {
@@ -30,7 +34,7 @@ public class RecordService {
 
     private final int MAX_BORROW_LIMIT = 5; // 最大借阅数量
 
-    // --- 【修正后的核心方法】 ---
+    // --- 【修正：返回 DTO 列表】 ---
     // 获取记录 (根据用户角色)
     public List<RecordDTO> getRecordsForUser(User user) {
         if (user == null) {
@@ -45,7 +49,7 @@ public class RecordService {
             rawRecords = recordRepository.findAll();
         }
 
-        // ***【核心修复逻辑：将实体映射为包含名称的 DTO】***
+        // --- 核心修复逻辑：将实体映射为包含名称的 DTO ---
         return rawRecords.stream().map(record -> {
             RecordDTO dto = new RecordDTO();
 
@@ -60,7 +64,6 @@ public class RecordService {
             dto.setStatus(record.getStatus());
 
             // 2. 填充关联名称 (BookTitle 和 UserName)
-            // 实体中的 getBook() 和 getUser() 必须是正确的方法名
             dto.setBookTitle(book != null ? book.getTitle() : "图书已删除");
             dto.setUserName(recordUser != null ? recordUser.getName() : "未知用户");
 
@@ -70,8 +73,9 @@ public class RecordService {
 
             return dto;
         }).collect(Collectors.toList());
-        // -----------------------------------------------------------------
     }
+
+    // --- (以下是您原有的完整业务逻辑) ---
 
     // 1. 借书
     @Transactional
@@ -216,5 +220,17 @@ public class RecordService {
         reservation.setDueDate(LocalDate.now().plusDays(30)); // 借阅期30天
 
         return recordRepository.save(reservation);
+    }
+
+    // --- 【新增：数据分析方法】 ---
+
+    // 6. 获取热门图书 Top 5
+    public List<PopularBookDTO> getTopPopularBooks() {
+        return recordRepository.findTop5PopularBooks(PageRequest.of(0, 5));
+    }
+
+    // 7. 获取活跃读者 Top 5
+    public List<ActiveUserDTO> getTopActiveUsers() {
+        return recordRepository.findTop5ActiveUsers(PageRequest.of(0, 5));
     }
 }
