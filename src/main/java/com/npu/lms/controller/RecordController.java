@@ -14,6 +14,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import com.npu.lms.service.ExcelExportService;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 
 import java.util.List;
 import java.util.Map;
@@ -26,7 +33,8 @@ public class RecordController {
     private RecordService recordService;
 
     // --- (业务接口) ---
-
+    @Autowired
+    private ExcelExportService excelExportService;
     // 明确返回 List<RecordDTO>
     @GetMapping
     public ResponseEntity<List<RecordDTO>> getMyRecords(@AuthenticationPrincipal User user) {
@@ -88,6 +96,32 @@ public class RecordController {
             return ResponseEntity.ok(recordService.processReservation(reservationId));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+    // 导出Excel文件接口
+    @GetMapping("/export/excel")
+    public ResponseEntity<InputStreamResource> exportRecordsExcel(@AuthenticationPrincipal User user, HttpServletResponse response) {
+
+        // 1. 获取所有 DTO 数据 (调用我们已有的方法)
+        List<RecordDTO> records = recordService.getRecordsForUser(user);
+
+        try {
+            // 2. 调用 Excel 服务生成文件流
+            ByteArrayInputStream in = excelExportService.exportRecordsToExcel(records);
+
+            // 3. 设置 HTTP 响应头，告诉浏览器这是一个要下载的文件
+            HttpHeaders headers = new HttpHeaders();
+            String filename = "borrow_records_" + java.time.LocalDate.now() + ".xlsx";
+            headers.add("Content-Disposition", "attachment; filename=" + filename);
+
+            return ResponseEntity
+                    .ok()
+                    .headers(headers)
+                    .body(new InputStreamResource(in));
+
+        } catch (IOException e) {
+            // 如果生成失败
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

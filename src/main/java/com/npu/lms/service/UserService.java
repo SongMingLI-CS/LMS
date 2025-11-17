@@ -3,13 +3,16 @@ package com.npu.lms.service;
 import com.npu.lms.entity.User;
 import com.npu.lms.repository.UserRepository;
 import com.npu.lms.security.RegisterRequest;
-import com.npu.lms.dto.UserDTO; // <-- NEW
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.stream.Collectors; // <-- NEW
+import java.time.LocalDateTime;
+import java.util.List; // 引入 List
+import java.util.Optional; // 引入 Optional
+import java.util.Random;
 
 @Service
 public class UserService {
@@ -20,66 +23,157 @@ public class UserService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // --- NEW: Conversion method ---
-    private UserDTO convertToDto(User user) {
-        UserDTO dto = new UserDTO();
-        dto.setId(user.getId());
-        dto.setUsername(user.getUsername());
-        dto.setName(user.getName());
-        dto.setRole(user.getRole());
-        // 确保不会暴露密码
-        return dto;
-    }
-    // ----------------------------
+    @Autowired
+    private EmailService emailService;
 
-
+    /**
+     * 【V2 注册】创建未验证的用户并发送验证码
+     */
+    @Transactional
     public User registerUser(RegisterRequest registerRequest) {
-        // 检查学号是否已存在
-        if (userRepository.existsByUsername(registerRequest.getUsername())) {
-            // (Controller 将捕获此异常)
-            throw new RuntimeException("注册失败：该学号已被注册！");
+
+        if (userRepository.findByUsername(registerRequest.getUsername()).isPresent()) {
+            throw new RuntimeException("注册失败：该学号/用户名已被注册！");
+        }
+        if (userRepository.findByEmail(registerRequest.getEmail()).isPresent()) {
+            throw new RuntimeException("注册失败：该邮箱已被使用！");
         }
 
         User user = new User();
         user.setUsername(registerRequest.getUsername());
         user.setName(registerRequest.getName());
-        user.setPassword(passwordEncoder.encode(registerRequest.getPassword())); // 密码加密
-        user.setRole("USER"); // 默认注册为普通用户
+        user.setEmail(registerRequest.getEmail());
+        user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        user.setRole("USER"); // 默认角色
+        user.setVerified(false);
 
-        return userRepository.save(user);
+        String verificationCode = String.format("%06d", new Random().nextInt(999999));
+        user.setVerificationCode(verificationCode);
+        user.setVerificationCodeExpiry(LocalDateTime.now().plusMinutes(15));
+
+        User savedUser = userRepository.save(user);
+
+        String subject = "LMS 系统 - 欢迎注册";
+        String body = "感谢您注册LMS系统！\n\n您的 6 位验证码是: " + verificationCode + "\n\n该验证码将在15分钟后失效。";
+        emailService.sendSimpleEmail(user.getEmail(), subject, body);
+
+        return savedUser;
     }
 
-    // MODIFIED: 返回 DTO List
-    public List<UserDTO> findAllUsersDTO() {
-        return userRepository.findAll().stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
-    }
-
-    // Original saveUser logic remains
-    public User saveUser(User user) {
-        if (user.getId() == null || (user.getPassword() != null && !user.getPassword().isEmpty())) {
-            // 假设如果密码字段不为空，就是需要更新
-            if (user.getId() == null || !passwordEncoder.matches(user.getPassword(), userRepository.findById(user.getId()).orElse(user).getPassword())) {
-                user.setPassword(passwordEncoder.encode(user.getPassword()));
-            }
-        } else {
-            // 如果密码字段为空 (前端编辑时)，则保留原密码
-            if(user.getId() != null) {
-                User oldUser = userRepository.findById(user.getId()).orElse(null);
-                if (oldUser != null) {
-                    user.setPassword(oldUser.getPassword());
-                }
-            }
+    /**
+     * 【V2 验证】验证用户
+     */
+    @Transactional
+    public User verifyUser(String username, String code) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("验证失败：未找到用户"));
+        if (user.isVerified()) {
+            throw new RuntimeException("验证失败：该账户已经激活");
         }
+        if (user.getVerificationCodeExpiry() == null || user.getVerificationCodeExpiry().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("验证失败：验证码已过期，请重新注册");
+        }
+        if (!user.getVerificationCode().equals(code)) {
+            throw new RuntimeException("验证失败：验证码错误");
+        }
+        user.setVerified(true);
+        user.setVerificationCode(null);
+        user.setVerificationCodeExpiry(null);
         return userRepository.save(user);
     }
 
+    // --- 【新增：UserController 所需的方法】 ---
+
+    /**
+     * 获取所有用户
+     */
+    public List<User> findAllUsers() {
+        return userRepository.findAll();
+    }
+
+    /**
+     * 按 ID 查找用户 (修复了 'FindById' 拼写)
+     */
+    public User findUserById(Long id) {
+        return userRepository.findById(id).orElse(null);
+    }
+
+    /**
+     * 更新用户信息 (Admin/Superadmin)
+     */
+    @Transactional
+    public User updateUser(Long id, User userDetails) {
+        User user = findUserById(id);
+        if (user == null) {
+            throw new RuntimeException("未找到用户");
+        }
+
+        // 更新基础信息
+        user.setName(userDetails.getName());
+        user.setUsername(userDetails.getUsername());
+        user.setRole(userDetails.getRole());
+        user.setEmail(userDetails.getEmail()); // 确保 email 也能更新
+
+        // 检查前端是否传入了新密码
+        if (userDetails.getPassword() != null && !userDetails.getPassword().isEmpty()) {
+            // 如果传入了新密码，则加密并更新
+            user.setPassword(passwordEncoder.encode(userDetails.getPassword()));
+        }
+        // 如果密码为空，则保持数据库中的旧密码不变
+
+        return userRepository.save(user);
+    }
+
+    /**
+     * 删除用户
+     */
+    @Transactional
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
     }
+    @Transactional
+    public void requestPasswordReset(String email) {
+        // 1. 查找用户
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("操作失败：该邮箱未注册"));
 
-    public User findById(Long id) {
-        return userRepository.findById(id).orElse(null);
+        // 2. 生成 6 位重置码
+        String resetCode = String.format("%06d", new Random().nextInt(999999));
+        user.setVerificationCode(resetCode);
+        user.setVerificationCodeExpiry(LocalDateTime.now().plusMinutes(15)); // 15分钟后过期
+        userRepository.save(user);
+
+        // 3. 异步发送邮件
+        String subject = "LMS 系统 - 密码重置请求";
+        String body = "您正在请求重置LMS系统的密码。\n\n您的 6 位重置码是: " + resetCode + "\n\n该验证码将在15分钟后失效。如果您未请求此操作，请忽略此邮件。";
+        emailService.sendSimpleEmail(user.getEmail(), subject, body);
+    }
+
+    /**
+     * 【新增 V2】执行密码重置
+     * (由 API 2: /reset-password 调用)
+     */
+    @Transactional
+    public void performPasswordReset(String email, String code, String newPassword) {
+        // 1. 查找用户
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("重置失败：未找到用户"));
+
+        // 2. 检查验证码是否过期
+        if (user.getVerificationCodeExpiry() == null || user.getVerificationCodeExpiry().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("重置失败：验证码已过期，请重新请求");
+        }
+
+        // 3. 检查验证码是否匹配
+        if (user.getVerificationCode() == null || !user.getVerificationCode().equals(code)) {
+            throw new RuntimeException("重置失败：验证码错误");
+        }
+
+        // 4. 验证成功：更新密码并清除验证码
+        user.setPassword(passwordEncoder.encode(newPassword)); // 加密新密码
+        user.setVerificationCode(null);
+        user.setVerificationCodeExpiry(null);
+
+        userRepository.save(user);
     }
 }

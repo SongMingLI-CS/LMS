@@ -1,61 +1,67 @@
-package com.npu.lms.controller; // 替换为您的包名
+package com.npu.lms.controller; // (请确保包名正确)
 
 import com.npu.lms.entity.User;
 import com.npu.lms.service.UserService;
-import com.npu.lms.dto.UserDTO; // <-- NEW
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize; // 引入安全注解
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/users") // 专用于用户管理的 Controller
+@PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SUPERADMIN')") // 仅管理员可访问
 public class UserController {
 
     @Autowired
     private UserService userService;
 
-    // MODIFIED: 返回 List<UserDTO>
+    /**
+     * 获取所有用户列表
+     */
     @GetMapping
-    public List<UserDTO> getAllUsers() {
-        return userService.findAllUsersDTO(); // <-- 调用新的 DTO 方法
+    public ResponseEntity<List<User>> getAllUsers() {
+        return ResponseEntity.ok(userService.findAllUsers());
     }
 
-    @PostMapping
-    public User createUser(@RequestBody User user) {
-        user.setId(null);
-        return userService.saveUser(user); // saveUser 方法会处理密码加密
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User userDetails) {
-        User user = userService.findById(id);
+    /**
+     * 按 ID 获取单个用户
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+        User user = userService.findUserById(id); // 修复了 FindById 拼写
         if (user == null) {
             return ResponseEntity.notFound().build();
         }
-
-        user.setName(userDetails.getName());
-        user.setUsername(userDetails.getUsername());
-        user.setRole(userDetails.getRole());
-
-        // 检查前端是否传入了密码
-        if (userDetails.getPassword() != null && !userDetails.getPassword().isEmpty()) {
-            user.setPassword(userDetails.getPassword());
-        } else {
-            // 前端未传入密码 (留空)，保持原密码
-            user.setPassword(null); // saveUser 逻辑会处理
-        }
-
-        return ResponseEntity.ok(userService.saveUser(user));
+        return ResponseEntity.ok(user);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        if (userService.findById(id) == null) {
+    /**
+     * 更新用户信息 (Admin/Superadmin)
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User userDetails) {
+        try {
+            // 调用 Service 层的更新逻辑
+            User updatedUser = userService.updateUser(id, userDetails);
+            return ResponseEntity.ok(updatedUser);
+        } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
-        userService.deleteUser(id);
+    }
+
+    /**
+     * 删除用户 (仅 Superadmin)
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ROLE_SUPERADMIN')") // 确保只有超级管理员能删除
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        User user = userService.findUserById(id);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
+        }
+        userService.deleteUser(id); // 调用 Service 层的删除逻辑
         return ResponseEntity.noContent().build();
     }
 }

@@ -12,6 +12,12 @@ public class BorrowRecord {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "reservation_expiry_date")
+    private LocalDate reservationExpiryDate; // 预约到期日
+
+    @Column(name = "renewal_count", nullable = false)
+    private int renewalCount = 0; // 默认值为 0
+
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -59,4 +65,20 @@ public class BorrowRecord {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public int getRenewalCount() {
+        return renewalCount;
+    }
+
+    public void setRenewalCount(int renewalCount) {
+        this.renewalCount = renewalCount;
+    }
+
+    public LocalDate getReservationExpiryDate() {
+        return reservationExpiryDate;
+    }
+
+    public void setReservationExpiryDate(LocalDate reservationExpiryDate) {
+        this.reservationExpiryDate = reservationExpiryDate;
+    }
 }

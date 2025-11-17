@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,9 +62,11 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
     List<OverdueUserDTO> findOverdueUsers();
 
 
-    // --- (原有业务查询) ---
     List<BorrowRecord> findByUserId(Long userId);
     List<BorrowRecord> findByUserIdAndStatus(Long userId, String status);
     List<BorrowRecord> findByBookIdAndStatus(Long bookId, String status);
     Optional<BorrowRecord> findByBookIdAndUserIdAndStatus(Long bookId, Long userId, String status);
+    List<BorrowRecord> findByBookIdAndStatusOrderByBorrowTimeAsc(Long bookId, String status);
+    // 【新增】查找所有状态为 'awaiting_pickup' 且预约到期日早于“今天”的记录
+    List<BorrowRecord> findByStatusAndReservationExpiryDateBefore(String status, LocalDate today);
 }
