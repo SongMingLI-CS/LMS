@@ -6,7 +6,8 @@ import com.npu.lms.service.RecordService;
 import com.npu.lms.dto.RecordDTO;
 import com.npu.lms.dto.PopularBookDTO;
 import com.npu.lms.dto.ActiveUserDTO;
-import com.npu.lms.dto.PeakTimeDTO; // 引入新增的 DTO
+import com.npu.lms.dto.PeakTimeDTO;
+import com.npu.lms.dto.OverdueUserDTO; // 引入新 DTO
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -24,21 +25,17 @@ public class RecordController {
     @Autowired
     private RecordService recordService;
 
-    // 2. 【修改】明确返回 List<RecordDTO>
-    //    确保前端能收到包含书名和用户名的借阅记录
+    // --- (业务接口) ---
+
+    // 明确返回 List<RecordDTO>
     @GetMapping
     public ResponseEntity<List<RecordDTO>> getMyRecords(@AuthenticationPrincipal User user) {
         try {
-            // Service 层现在返回 List<RecordDTO>
             return ResponseEntity.ok(recordService.getRecordsForUser(user));
         } catch (RuntimeException e) {
-            // 如果 user 为 null (未登录) 或发生错误
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
-
-    // --- (借书、预约、还书等方法保持不变) ---
-    // (已从您之前的代码中恢复完整实现)
 
     // 借书
     @PostMapping("/borrow")
@@ -94,23 +91,29 @@ public class RecordController {
         }
     }
 
-    // --- 3. 【修改】数据分析接口 ---
+    // --- 【数据分析接口 (4 个)】 ---
 
-    // 获取热门图书 Top 5 (返回 PopularBookDTO)
+    // 热门图书 Top 5
     @GetMapping("/analysis/popular-books")
     public ResponseEntity<List<PopularBookDTO>> getPopularBooks() {
         return ResponseEntity.ok(recordService.getTopPopularBooks());
     }
 
-    // 获取活跃读者 Top 5 (返回 ActiveUserDTO)
+    // 活跃读者 Top 5
     @GetMapping("/analysis/active-users")
     public ResponseEntity<List<ActiveUserDTO>> getActiveUsers() {
         return ResponseEntity.ok(recordService.getTopActiveUsers());
     }
 
-    // --- 4. 【新增：高峰时段接口】 ---
+    // 高峰时段
     @GetMapping("/analysis/peak-times")
     public ResponseEntity<List<PeakTimeDTO>> getPeakTimes() {
         return ResponseEntity.ok(recordService.getPeakBorrowingTimes());
+    }
+
+    // 【新增】逾期读者
+    @GetMapping("/analysis/overdue-users")
+    public ResponseEntity<List<OverdueUserDTO>> getOverdueUsers() {
+        return ResponseEntity.ok(recordService.getOverdueUsers());
     }
 }

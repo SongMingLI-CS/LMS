@@ -1,12 +1,13 @@
 package com.npu.lms.controller;
 
-import com.npu.lms.dto.CategoryStatsDTO; // 引入 DTO
+import com.npu.lms.dto.CategoryStatsDTO;
+import com.npu.lms.dto.StagnantBookDTO;
 import com.npu.lms.entity.Book;
 import com.npu.lms.service.BookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List; // 引入 List
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/books")
@@ -15,43 +16,46 @@ public class BookController {
     @Autowired
     private BookService bookService;
 
-    // --- (您原有的图书 CRUD 接口) ---
+    // --- (基础 CRUD 接口) ---
 
+    // 获取所有图书 (供图书管理页面使用)
     @GetMapping
     public List<Book> getAllBooks() {
         return bookService.getAllBooks();
     }
 
+    // 图书入库 (新增)
     @PostMapping
     public Book createBook(@RequestBody Book book) {
+        // 在 V2 中，我们应该使用 DTO，但目前保持实体以匹配前端
         return bookService.saveBook(book);
     }
 
+    // 图书编辑 (更新)
     @PutMapping("/{id}")
     public Book updateBook(@PathVariable Long id, @RequestBody Book bookDetails) {
-        Book book = bookService.findBookById(id);
-        if (book != null) {
-            // (更新逻辑)
-            book.setTitle(bookDetails.getTitle());
-            book.setAuthor(bookDetails.getAuthor());
-            book.setIsbn(bookDetails.getIsbn());
-            book.setStock(bookDetails.getStock());
-            book.setAvailable(bookDetails.getAvailable());
-            book.setCategory(bookDetails.getCategory()); // 确保分类被更新
-            book.setCover(bookDetails.getCover());
-            return bookService.saveBook(book);
-        }
-        return null; // or throw exception
+        // 使用 Service 层的更新逻辑
+        return bookService.updateBook(id, bookDetails);
     }
 
+    // 图书出库 (删除)
     @DeleteMapping("/{id}")
-    public void deleteBook(@PathVariable Long id) {
+    public ResponseEntity<?> deleteBook(@PathVariable Long id) {
         bookService.deleteBook(id);
+        return ResponseEntity.ok().build();
     }
 
-    // --- 【新增：数据分析接口】 ---
+    // --- 【数据分析接口 (2 个)】 ---
+
+    // 图书分类占比
     @GetMapping("/analysis/categories")
     public ResponseEntity<List<CategoryStatsDTO>> getCategoryStats() {
         return ResponseEntity.ok(bookService.getBookCategoryStats());
+    }
+
+    // 【新增】滞销图书
+    @GetMapping("/analysis/stagnant-books")
+    public ResponseEntity<List<StagnantBookDTO>> getStagnantBooks() {
+        return ResponseEntity.ok(bookService.getStagnantBooks());
     }
 }
