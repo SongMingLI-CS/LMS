@@ -455,47 +455,82 @@
 
                         <section v-if="currentPage === 'analysis'">
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
                                 <div class="p-6 bg-white rounded-lg shadow-lg">
                                     <h3 class="text-xl font-semibold mb-4">热门图书 Top 5 (基于当前记录)</h3>
                                     <ul class="space-y-3">
-                                        <li v-for="(book, index) in popularBooks" :key="book.id" class="flex items-center justify-between">
+                                        <li v-if="popularBooks.length === 0" class="text-gray-500">暂无数据</li>
+                                        <li v-for="(book, index) in popularBooks" :key="book.title" class="flex items-center justify-between">
                                             <span class="font-medium">{{ index + 1 }}. {{ book.title }}</span>
                                             <span class="text-gray-600">{{ book.borrowCount }} 次借阅</span>
                                         </li>
                                     </ul>
                                 </div>
+
                                 <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <h3 class="text-xl font-semibold mb-4">借阅高峰时段</h3>
+                                    <h3 class="text-xl font-semibold mb-4">借阅高峰时段 (真实数据)</h3>
                                     <div class="relative h-64">
+                                        <div v-if="peakTimeStats.length === 0" class="flex items-center justify-center h-full text-gray-500">暂无数据 (9:00-19:00)</div>
                                         <div class="h-full flex items-end justify-around space-x-2">
                                             <div class="text-center" v-for="slot in peakTimeStats" :key="slot.hourSlot">
-                                                <div class="bg-blue-500 rounded-t-lg"
-                                                     :style="{ height: (slot.count * 10) + 'px' }"> <span class="text-xs text-white relative top-2">{{ slot.count }}</span> </div>
+                                                <div class="bg-blue-500 rounded-t-lg relative" :style="{ height: (slot.count * 10) + 'px' }">
+                                                    <span class="text-xs text-white absolute -top-5 left-1/2 -translate-x-1/2">{{ slot.count }}</span>
+                                                </div>
                                                 <span class="text-xs text-gray-500">{{ slot.hourSlot }}</span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
+
                                 <div class="p-6 bg-white rounded-lg shadow-lg">
                                     <h3 class="text-xl font-semibold mb-4">活跃读者 Top 5 (基于当前记录)</h3>
                                     <ul class="space-y-3">
-                                        <li v-for="(user, index) in activeUsers" :key="user.id" class="flex items-center justify-between">
+                                        <li v-if="activeUsers.length === 0" class="text-gray-500">暂无数据</li>
+                                        <li v-for="(user, index) in activeUsers" :key="user.name" class="flex items-center justify-between">
                                             <span class="font-medium">{{ index + 1 }}. {{ user.name }}</span>
                                             <span class="text-gray-600">{{ user.borrowCount }} 次借阅</span>
                                         </li>
                                     </ul>
                                 </div>
+
                                 <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <h3 class="text-xl font-semibold mb-4">图书分类占比</h3>
+                                    <h3 class="text-xl font-semibold mb-4">图书分类占比 (真实数据)</h3>
                                     <div class="w-48 h-48 rounded-full flex items-center justify-center mx-auto"
-                                         style="background-image: conic-gradient(#3b82f6 0% 30%, #10b981 30% 55%, #f59e0b 55% 75%, #ec4899 75% 90%, #8b5cf6 90% 100%)">
+                                         :style="{ backgroundImage: pieChartStyle }">
                                     </div>
+
+                                    <div v-if="categoryStats.length === 0" class="mt-4 text-center text-gray-500">暂无分类数据</div>
+
                                     <div class="mt-4 text-sm text-gray-600 text-center flex flex-wrap justify-center gap-x-3">
-                                        <div v-for="cat in categoryStats" :key="cat.category">
-                                            <span class="inline-block w-3 h-3 bg-blue-500 rounded-full mr-1"></span> {{ cat.category }} ({{ cat.count }}本)
+                                        <div v-for="(cat, index) in categoryStats" :key="cat.category">
+                                                    <span class="inline-block w-3 h-3 rounded-full mr-1"
+                                                        :style="{ backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#6b7280'][index % 6] }"></span>
+                                            {{ cat.category }} ({{ (cat.count / categoryStats.reduce((sum, item) => sum + item.count, 0) * 100).toFixed(1) }}%)
                                         </div>
                                     </div>
-                            </div>
+                                </div>
+                                <div class="p-6 bg-white rounded-lg shadow-lg">
+                                    <h3 class="text-xl font-semibold mb-4">逾期读者 (基于当前记录)</h3>
+                                    <ul class="space-y-3">
+                                        <li v-if="overdueUsers.length === 0" class="text-gray-500">暂无逾期读者</li>
+                                        <li v-for="(user, index) in overdueUsers" :key="user.name" class="flex items-center justify-between">
+                                            <span class="font-medium text-red-600">{{ index + 1 }}. {{ user.name }}</span>
+                                            <span class="text-gray-600">{{ user.overdueCount }} 本逾期</span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div class="p-6 bg-white rounded-lg shadow-lg">
+                                    <h3 class="text-xl font-semibold mb-4">滞销图书 Top 10 (6个月内未借阅)</h3>
+                                    <ul class="space-y-3">
+                                        <li v-if="stagnantBooks.length === 0" class="text-gray-500">暂无滞销图书</li>
+                                        <li v-for="(book, index) in stagnantBooks" :key="book.title" class="flex items-center justify-between">
+                                            <span class="font-medium">{{ index + 1 }}. {{ book.title }}</span>
+                                            <span class="text-gray-600 text-xs">{{ book.category }}</span>
+                                        </li>
+                                    </ul>
+                                </div>
+
                             </div>
                         </section>
 
@@ -626,9 +661,11 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const popularBooks = ref([]);
             const activeUsers = ref([]);
 
-            // 【新增】真实图表数据状态
+            // 【新增】为新的真实数据图表添加 ref
             const categoryStats = ref([]);
             const peakTimeStats = ref([]);
+            const overdueUsers = ref([]);
+            const stagnantBooks = ref([]);
 
 // 注册表单
             const isRegistering = ref(false);
@@ -751,6 +788,34 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const totalBookCount = computed(() => books.value.length);
             const totalUserCount = computed(() => users.value.length);
 
+
+            // 在所有其他 computed 属性下方添加此属性
+            const pieChartStyle = computed(() => {
+                if (categoryStats.value.length === 0) return '';
+
+                // 1. 计算总数量
+                const total = categoryStats.value.reduce((sum, item) => sum + item.count, 0);
+                if (total === 0) return '';
+
+                let currentAngle = 0;
+                // 定义一个颜色数组，防止颜色重复
+                const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#6b7280'];
+                const segments = [];
+
+                categoryStats.value.forEach((item, index) => {
+                    // 计算当前分类占用的百分比 (360度中的角度)
+                    const percentage = item.count / total;
+                    const endAngle = currentAngle + percentage * 360;
+
+                    // 生成 CSS 片段: color start_angle end_angle
+                    segments.push(`${colors[index % colors.length]} ${currentAngle}deg ${endAngle}deg`);
+
+                    currentAngle = endAngle;
+                });
+
+                // 返回最终的 CSS 样式字符串
+                return `conic-gradient(${segments.join(', ')})`;
+            });
             // 【注意】 popularBooks 和 activeUsers 已被移除 computed，改为顶部的 ref()
 
 
@@ -807,36 +872,36 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
 // --- 3. 数据获取 (API) ---
 
             // 【新增】获取数据分析的方法
+            // 【替换】使用这个新版本的 fetchAnalysisData
             const fetchAnalysisData = async () => {
                 try {
                     await Promise.all([
                         // 1. 热门图书
                         api.get('/api/records/analysis/popular-books')
-                            .then(res => {
-                                popularBooks.value = res.data;
-                            }),
+                            .then(res => { popularBooks.value = res.data; }),
 
                         // 2. 活跃读者
                         api.get('/api/records/analysis/active-users')
-                            .then(res => {
-                                activeUsers.value = res.data;
-                            }),
+                            .then(res => { activeUsers.value = res.data; }),
 
-                        // 3. 【新增】图书分类
+                        // 3. 图书分类 (真实数据)
                         api.get('/api/books/analysis/categories')
-                            .then(res => {
-                                categoryStats.value = res.data;
-                            }),
+                            .then(res => { categoryStats.value = res.data; }),
 
-                        // 4. 【新增】高峰时段
+                        // 4. 高峰时段 (真实数据)
                         api.get('/api/records/analysis/peak-times')
-                            .then(res => {
-                                peakTimeStats.value = res.data;
-                            })
+                            .then(res => { peakTimeStats.value = res.data; }),
+
+                        // 5. 逾期读者 (V2 需求)
+                        api.get('/api/records/analysis/overdue-users')
+                            .then(res => { overdueUsers.value = res.data; }),
+
+                        // 6. 滞销图书 (V2 需求)
+                        api.get('/api/books/analysis/stagnant-books')
+                            .then(res => { stagnantBooks.value = res.data; })
                     ]);
                 } catch (error) {
                     console.error("加载分析数据失败:", error);
-                    // 登录时弹出错误
                     showMessage('加载失败', '无法获取数据分析报告。', 'error');
                 }
             };
@@ -1222,6 +1287,10 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 totalUserCount,
                 popularBooks,
                 activeUsers,
+                categoryStats,
+                peakTimeStats,
+                overdueUsers,
+                stagnantBooks,
 
                 // 方法
                 handleLogin,
