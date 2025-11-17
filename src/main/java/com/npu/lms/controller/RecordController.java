@@ -6,6 +6,7 @@ import com.npu.lms.service.RecordService;
 import com.npu.lms.dto.RecordDTO;
 import com.npu.lms.dto.PopularBookDTO;
 import com.npu.lms.dto.ActiveUserDTO;
+import com.npu.lms.dto.PeakTimeDTO; // 引入新增的 DTO
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -27,16 +28,17 @@ public class RecordController {
     //    确保前端能收到包含书名和用户名的借阅记录
     @GetMapping
     public ResponseEntity<List<RecordDTO>> getMyRecords(@AuthenticationPrincipal User user) {
-        // (您原来的 try-catch 逻辑可以保留，但 Service 返回类型已更改)
         try {
+            // Service 层现在返回 List<RecordDTO>
             return ResponseEntity.ok(recordService.getRecordsForUser(user));
         } catch (RuntimeException e) {
-            // 如果 user 为 null 或发生错误，返回错误信息
+            // 如果 user 为 null (未登录) 或发生错误
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
 
     // --- (借书、预约、还书等方法保持不变) ---
+    // (已从您之前的代码中恢复完整实现)
 
     // 借书
     @PostMapping("/borrow")
@@ -104,5 +106,11 @@ public class RecordController {
     @GetMapping("/analysis/active-users")
     public ResponseEntity<List<ActiveUserDTO>> getActiveUsers() {
         return ResponseEntity.ok(recordService.getTopActiveUsers());
+    }
+
+    // --- 4. 【新增：高峰时段接口】 ---
+    @GetMapping("/analysis/peak-times")
+    public ResponseEntity<List<PeakTimeDTO>> getPeakTimes() {
+        return ResponseEntity.ok(recordService.getPeakBorrowingTimes());
     }
 }

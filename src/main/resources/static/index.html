@@ -465,12 +465,13 @@
                                     </ul>
                                 </div>
                                 <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <h3 class="text-xl font-semibold mb-4">借阅高峰时段 (模拟数据)</h3>
+                                    <h3 class="text-xl font-semibold mb-4">借阅高峰时段</h3>
                                     <div class="relative h-64">
                                         <div class="h-full flex items-end justify-around space-x-2">
-                                            <div class="text-center" v-for="slot in analysisData.peakHours" :key="slot.time">
-                                                <div class="bg-blue-500 rounded-t-lg" :style="{ height: slot.count + '%' }"></div>
-                                                <span class="text-xs text-gray-500">{{ slot.time }}</span>
+                                            <div class="text-center" v-for="slot in peakTimeStats" :key="slot.hourSlot">
+                                                <div class="bg-blue-500 rounded-t-lg"
+                                                     :style="{ height: (slot.count * 10) + 'px' }"> <span class="text-xs text-white relative top-2">{{ slot.count }}</span> </div>
+                                                <span class="text-xs text-gray-500">{{ slot.hourSlot }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -485,17 +486,16 @@
                                     </ul>
                                 </div>
                                 <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <h3 class="text-xl font-semibold mb-4">图书分类占比 (模拟数据)</h3>
+                                    <h3 class="text-xl font-semibold mb-4">图书分类占比</h3>
                                     <div class="w-48 h-48 rounded-full flex items-center justify-center mx-auto"
                                          style="background-image: conic-gradient(#3b82f6 0% 30%, #10b981 30% 55%, #f59e0b 55% 75%, #ec4899 75% 90%, #8b5cf6 90% 100%)">
                                     </div>
-                                    <div class="mt-4 text-sm text-gray-600 text-center">
-                                        <span class="inline-block w-3 h-3 bg-blue-500 rounded-full mr-1"></span> 文学 (30%)
-                                        <span class="inline-block w-3 h-3 bg-green-500 rounded-full mr-1 ml-2"></span> 科技 (25%)
-                                        <span class="inline-block w-3 h-3 bg-yellow-500 rounded-full mr-1 ml-2"></span> 历史 (20%)
-                                        ...
+                                    <div class="mt-4 text-sm text-gray-600 text-center flex flex-wrap justify-center gap-x-3">
+                                        <div v-for="cat in categoryStats" :key="cat.category">
+                                            <span class="inline-block w-3 h-3 bg-blue-500 rounded-full mr-1"></span> {{ cat.category }} ({{ cat.count }}本)
+                                        </div>
                                     </div>
-                                </div>
+                            </div>
                             </div>
                         </section>
 
@@ -621,20 +621,26 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const loginError = ref('');
             const currentPage = ref('dashboard');
             const isSidebarOpen = ref(true);
+
+            // 【修改】Top 5 状态 (由 API 填充)
             const popularBooks = ref([]);
             const activeUsers = ref([]);
 
-// 新增：注册表单
-            const isRegistering = ref(false); // 控制登录/注册界面的切换
+            // 【新增】真实图表数据状态
+            const categoryStats = ref([]);
+            const peakTimeStats = ref([]);
+
+// 注册表单
+            const isRegistering = ref(false);
             const registerForm = reactive({ username: '', name: '', password: '', confirmPassword: '' });
             const registerError = ref('');
 
-// 新增：全局加载状态
+// 全局加载状态
             const isLoading = ref(false);
 
 // 弹窗
             const isModalOpen = ref(false);
-            const modalType = ref(''); // 'book', 'user', 'alert'
+            const modalType = ref('');
             const alertMessage = reactive({ title: '', text: '', type: 'success' });
 
 // 搜索
@@ -645,25 +651,22 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const returnBookId = ref('');
             const returnUserId = ref('');
 
-// --- 数据库 (现在是前端的数据缓存) ---
+// --- 前端数据缓存 ---
             const users = ref([]);
             const books = ref([]);
             const borrowRecords = ref([]);
 
 
 // --- 2. 配置 Axios API 实例 ---
-// 假设您的 Spring Boot 运行在 localhost:8080
             const api = axios.create({
-                baseURL: '/', // 确保这是您 Spring Boot 的地址
+                baseURL: '/',
                 timeout: 10000,
             });
 
-// !!! 关键：Axios 拦截器 (用于发送认证 Token)
-// 每次请求都会自动附加 Token
+// Axios 拦截器 (用于发送认证 Token)
             api.interceptors.request.use(config => {
                 const token = localStorage.getItem('token');
                 if (token) {
-                    // 假设后端使用 Bearer Token (JWT)
                     config.headers.Authorization = `Bearer ${token}`;
                 }
                 return config;
@@ -679,7 +682,7 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const defaultUser = { id: null, username: '', name: '', password: '', role: 'user' };
             const currentUserForm = reactive({ ...defaultUser });
 
-// --- 页面定义 (Navigation) (不变) ---
+// --- 页面定义 (Navigation) ---
             const allPages = [
                 { id: 'dashboard', title: '仪表盘', icon: 'grid-outline', roles: ['user', 'admin', 'superadmin'] },
                 { id: 'browseBooks', title: '图书浏览', icon: 'search-outline', roles: ['user'] },
@@ -690,20 +693,18 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 { id: 'analysis', title: '数据分析', icon: 'bar-chart-outline', roles: ['admin', 'superadmin'] },
             ];
 
-// --- 计算属性 (Computed) (逻辑不变) ---
-            // --- 修正后的 visiblePages 计算属性 ---
+// --- 计算属性 (Computed) ---
+
+            // 【修正】修正 visiblePages 计算属性，确保正确处理 ROLE_ 前缀
             const visiblePages = computed(() => {
                 if (!currentUser.value) return [];
-
-                // 1. 获取后端传来的角色字符串 (例如 "ROLE_SUPERADMIN")
                 const rawRole = currentUser.value.role || '';
-
-                // 2. 清理角色：去除 ROLE_ 前缀并转为小写 (例如得到 "superadmin")
+                // 清理角色：去除 ROLE_ 前缀并转为小写 (例如得到 "superadmin")
                 const cleanRole = rawRole.replace(/ROLE_/gi, '').toLowerCase();
-
-                // 3. 使用清理后的角色进行匹配
+                // 使用清理后的角色进行匹配
                 return allPages.filter(p => p.roles.includes(cleanRole));
             });
+
             const currentPageTitle = computed(() => {
                 return allPages.find(p => p.id === currentPage.value)?.title || '仪表盘';
             });
@@ -722,12 +723,14 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 return users.value.filter(u =>
                     u.username.toLowerCase().includes(query) ||
                     u.name.toLowerCase().includes(query) ||
-                    u.id.toString().toLowerCase().includes(query) // 确保 ID 是字符串
+                    (u.id && u.id.toString().toLowerCase().includes(query)) // 添加 u.id 检查
                 );
             });
             const filteredRecords = computed(() => {
                 if (!currentUser.value) return [];
-                if (currentUser.value.role === 'user') {
+                // 【修正】使用清理后的角色进行判断
+                const cleanRole = (currentUser.value.role || '').replace(/ROLE_/gi, '').toLowerCase();
+                if (cleanRole === 'user') {
                     return borrowRecords.value.filter(r => r.userId === currentUser.value.id);
                 }
                 return borrowRecords.value;
@@ -748,38 +751,10 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const totalBookCount = computed(() => books.value.length);
             const totalUserCount = computed(() => users.value.length);
 
-// 数据分析统计 (基于前端数据)
-//             const popularBooks = computed(() => {
-//                 const counts = {};
-//                 borrowRecords.value.forEach(r => {
-//                     counts[r.bookId] = (counts[r.bookId] || 0) + 1;
-//                 });
-//                 return Object.entries(counts)
-//                     .map(([bookId, count]) => ({
-//                         ...getBookById(bookId),
-//                         title: getBookById(bookId)?.title || '未知图书',
-//                         borrowCount: count
-//                     }))
-//                     .sort((a, b) => b.borrowCount - a.borrowCount)
-//                     .slice(0, 5);
-//             });
-//
-//             const activeUsers = computed(() => {
-//                 const counts = {};
-//                 borrowRecords.value.forEach(r => {
-//                     counts[r.userId] = (counts[r.userId] || 0) + 1;
-//                 });
-//                 return Object.entries(counts)
-//                     .map(([userId, count]) => ({
-//                         ...getUserById(userId),
-//                         name: getUserById(userId)?.name || '未知用户',
-//                         borrowCount: count
-//                     }))
-//                     .sort((a, b) => b.borrowCount - a.borrowCount)
-//                     .slice(0, 5);
-//             });
+            // 【注意】 popularBooks 和 activeUsers 已被移除 computed，改为顶部的 ref()
 
-// 模拟分析数据
+
+// 模拟分析数据 (保留，用于图表占位)
             const analysisData = ref({
                 peakHours: [
                     { time: '9-11', count: 60 },
@@ -791,22 +766,11 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             });
 
 
-// --- 辅助方法 (Helpers) (逻辑不变) ---
+// --- 辅助方法 (Helpers) ---
             const getRoleName = (role) => {
-                // 确保传入的 role 是有效字符串
-                if (!role) {
-                    return '未知';
-                }
-
+                if (!role) return '未知';
                 const roles = { user: '普通用户', admin: '管理员', superadmin: '超级管理员' };
-
-                // 1. 去除所有 ROLE_ 前缀（不区分大小写）
-                let cleanRole = role.replace(/ROLE_/gi, '');
-
-                // 2. 转换为小写
-                cleanRole = cleanRole.toLowerCase();
-
-                // 3. 查找并返回结果
+                let cleanRole = role.replace(/ROLE_/gi, '').toLowerCase();
                 return roles[cleanRole] || '未知';
             };
             const showMessage = (title, text, type = 'success') => {
@@ -819,8 +783,7 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const closeModal = () => {
                 isModalOpen.value = false;
                 modalType.value = '';
-                // 重置表单
-                Object.assign(currentBook, defaultBook, { id: null }); // 确保 id 重置
+                Object.assign(currentBook, defaultBook, { id: null });
                 Object.assign(currentUserForm, defaultUser, { id: null });
             };
             const getToday = () => new Date().toISOString().split('T')[0];
@@ -835,19 +798,53 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 const due = new Date(dueDate);
                 return due < today;
             };
-// ID查找 (现在改为查找本地缓存的 ref)
+// ID查找 (依赖前端缓存)
             const getBookById = (id) => books.value.find(b => b.id === id);
             const getUserById = (id) => users.value.find(u => u.id === id);
             const clearBookSearch = () => bookSearchQuery.value = '';
 
 
-// --- 3. 数据获取 (替换为真实 API) ---
+// --- 3. 数据获取 (API) ---
 
-// 封装一个总的数据加载函数
+            // 【新增】获取数据分析的方法
+            const fetchAnalysisData = async () => {
+                try {
+                    await Promise.all([
+                        // 1. 热门图书
+                        api.get('/api/records/analysis/popular-books')
+                            .then(res => {
+                                popularBooks.value = res.data;
+                            }),
+
+                        // 2. 活跃读者
+                        api.get('/api/records/analysis/active-users')
+                            .then(res => {
+                                activeUsers.value = res.data;
+                            }),
+
+                        // 3. 【新增】图书分类
+                        api.get('/api/books/analysis/categories')
+                            .then(res => {
+                                categoryStats.value = res.data;
+                            }),
+
+                        // 4. 【新增】高峰时段
+                        api.get('/api/records/analysis/peak-times')
+                            .then(res => {
+                                peakTimeStats.value = res.data;
+                            })
+                    ]);
+                } catch (error) {
+                    console.error("加载分析数据失败:", error);
+                    // 登录时弹出错误
+                    showMessage('加载失败', '无法获取数据分析报告。', 'error');
+                }
+            };
+
+            // 【修改】fetchAllData (添加了 fetchAnalysisData)
             const fetchAllData = async () => {
                 isLoading.value = true;
                 try {
-                    // 并发请求所有数据 (新增 fetchAnalysisData)
                     await Promise.all([
                         fetchBooks(),
                         fetchUsers(),
@@ -862,31 +859,9 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 }
             };
 
-
-            const fetchAnalysisData = async () => {
-                try {
-                    await Promise.all([
-                        // 调用新的热门图书 API
-                        api.get('/api/records/analysis/popular-books')
-                            .then(res => {
-                                popularBooks.value = res.data;
-                            }),
-
-                        // 调用新的活跃读者 API
-                        api.get('/api/records/analysis/active-users')
-                            .then(res => {
-                                activeUsers.value = res.data;
-                            })
-                    ]);
-                } catch (error) {
-                    console.error("加载分析数据失败:", error);
-                    showMessage('加载失败', '无法获取数据分析报告。', 'error');
-                }
-            };
-
             const fetchBooks = async () => {
                 try {
-                    const response = await api.get('/api/books'); // 假设后端 API 是 /api/books
+                    const response = await api.get('/api/books');
                     books.value = response.data;
                 } catch (error) {
                     console.error("获取图书失败:", error);
@@ -895,20 +870,18 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             };
 
             const fetchUsers = async () => {
-                // 只有管理员才需要加载用户列表
-                // 关键: 将角色转为小写再比较
-                if (currentUser.value.role.toLowerCase() === 'user') {
-                    users.value = []; // 普通用户不需要用户列表
+                // 【修正】使用清理后的角色进行判断
+                const cleanRole = (currentUser.value?.role || '').replace(/ROLE_/gi, '').toLowerCase();
+                if (cleanRole === 'user') {
+                    users.value = [];
                     return;
                 }
                 try {
-                    const response = await api.get('/api/users'); // 假设后端 API 是 /api/users
+                    const response = await api.get('/api/users');
                     users.value = response.data;
                 } catch (error) {
                     console.error("获取用户失败:", error);
-                    // 普通用户访问此接口被拒绝是正常的，不应弹窗报错
-                    // 只有在非 'user' 角色 (即 admin) 访问失败时才显示错误
-                    if (currentUser.value.role.toLowerCase() !== 'user') {
+                    if (cleanRole !== 'user') {
                         showMessage('加载失败', '无法获取用户列表。', 'error');
                     }
                 }
@@ -916,9 +889,7 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
 
             const fetchRecords = async () => {
                 try {
-                    // 后端应根据用户角色（或Token）返回相应的数据
-                    // 'user' 只返回自己的, 'admin' 返回所有
-                    const response = await api.get('/api/records'); // 假设后端 API 是 /api/records
+                    const response = await api.get('/api/records');
                     borrowRecords.value = response.data;
                 } catch (error) {
                     console.error("获取记录失败:", error);
@@ -926,27 +897,29 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 }
             };
 
-// --- 核心业务逻辑 (替换为真实 API) ---
+// --- 核心业务逻辑 (API) ---
 
 // 1. 认证
             const handleLogin = async () => {
                 isLoading.value = true;
                 loginError.value = '';
                 try {
-                    // 假设后端登录接口是 /login, 返回 { token: '...', user: { ... } }
                     const response = await api.post('/login', loginForm);
 
                     if (response.data && response.data.token && response.data.user) {
-                        // 1. 存储 Token
                         localStorage.setItem('token', response.data.token);
-                        // 2. 设置当前用户
-                        currentUser.value = response.data.user;
-                        // 3. 重置表单
+
+                        // 【修正】在设置 currentUser 之前清理角色
+                        let user = response.data.user;
+                        user.role = (user.role || '').replace(/ROLE_/gi, '').toLowerCase();
+
+                        currentUser.value = user;
+
                         loginForm.username = '';
                         loginForm.password = '';
                         currentPage.value = 'dashboard';
 
-                        // 4. 登录成功后, 加载所有数据
+                        // 登录成功后, 加载所有数据
                         await fetchAllData();
 
                     } else {
@@ -964,18 +937,15 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 }
             };
 
-// (新功能) 注册
+// 2. 注册
             const handleRegister = async () => {
                 registerError.value = '';
                 if (registerForm.password !== registerForm.confirmPassword) {
                     registerError.value = '两次输入的密码不一致！';
                     return;
                 }
-
                 isLoading.value = true;
                 try {
-                    // 假设后端注册接口是 /register
-                    // 后端应校验学号 (username) 是否唯一
                     const payload = {
                         username: registerForm.username,
                         name: registerForm.name,
@@ -983,16 +953,14 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                     };
                     await api.post('/register', payload);
 
-                    // 注册成功
                     showMessage('注册成功', '您现在可以使用学号和密码登录了。');
-                    isRegistering.value = false; //切换回登录界面
+                    isRegistering.value = false;
                     registerError.value = '';
-                    Object.assign(registerForm, { username: '', name: '', password: '', confirmPassword: '' }); //清空表单
+                    Object.assign(registerForm, { username: '', name: '', password: '', confirmPassword: '' });
 
                 } catch (error) {
                     console.error("注册失败:", error);
                     if (error.response && error.response.status === 409) {
-                        // 409 Conflict (后端检测到学号重复)
                         registerError.value = '注册失败：该学号已被注册！';
                     } else {
                         registerError.value = '注册失败，请稍后再试。';
@@ -1005,21 +973,20 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
 
             const handleLogout = () => {
                 currentUser.value = null;
-                localStorage.removeItem('token'); // 清除 Token
+                localStorage.removeItem('token');
                 currentPage.value = 'dashboard';
-                // 清空所有数据
                 books.value = [];
                 users.value = [];
                 borrowRecords.value = [];
+                popularBooks.value = []; // 清空分析数据
+                activeUsers.value = [];  // 清空分析数据
             };
 
 // 2. 图书管理
             const openBookModal = (book) => {
                 if (book) {
-                    // 编辑
                     Object.assign(currentBook, book);
                 } else {
-                    // 新增 (重置为默认空值, id 设为 null)
                     Object.assign(currentBook, defaultBook, { id: null });
                 }
                 modalType.value = 'book';
@@ -1030,17 +997,13 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 isLoading.value = true;
                 try {
                     if (currentBook.id) {
-                        // 更新 (PUT /api/books/{id})
                         await api.put(`/api/books/${currentBook.id}`, currentBook);
                     } else {
-                        // 新增 (POST /api/books)
                         await api.post('/api/books', currentBook);
                     }
-
                     showMessage('操作成功', '图书信息已保存');
                     closeModal();
-                    await fetchBooks(); // 重新加载图书列表
-
+                    await fetchBooks();
                 } catch (error) {
                     console.error("保存图书失败:", error);
                     showMessage('操作失败', '无法保存图书到服务器。', 'error');
@@ -1053,12 +1016,9 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 if (confirm(`确认要删除/出库图书 《${book.title}》 吗？`)) {
                     isLoading.value = true;
                     try {
-                        // 删除 (DELETE /api/books/{id})
                         await api.delete(`/api/books/${book.id}`);
-
                         showMessage('操作成功', `《${book.title}》 已删除`);
-                        await fetchBooks(); // 重新加载图书列表
-
+                        await fetchBooks();
                     } catch (error) {
                         console.error("删除图书失败:", error);
                         showMessage('操作失败', '无法从服务器删除该图书。', 'error');
@@ -1071,7 +1031,9 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
 // 3. 用户管理
             const openUserModal = (user) => {
                 if (user) {
-                    Object.assign(currentUserForm, user, { password: '' }); // 密码留空
+                    // 【修正】确保在编辑时使用清理后的角色
+                    const cleanRole = (user.role || '').replace(/ROLE_/gi, '').toLowerCase();
+                    Object.assign(currentUserForm, user, { password: '', role: cleanRole });
                 } else {
                     Object.assign(currentUserForm, defaultUser, { id: null });
                 }
@@ -1084,21 +1046,17 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 try {
                     const userData = { ...currentUserForm };
                     if (!userData.password) {
-                        delete userData.password; // 不发送空密码 (后端不更新)
+                        delete userData.password;
                     }
 
                     if (userData.id) {
-                        // 更新 (PUT /api/users/{id})
                         await api.put(`/api/users/${userData.id}`, userData);
                     } else {
-                        // 新增 (POST /api/users)
                         await api.post('/api/users', userData);
                     }
-
                     showMessage('操作成功', '用户信息已保存');
                     closeModal();
-                    await fetchUsers(); // 重新加载用户列表
-
+                    await fetchUsers();
                 } catch (error) {
                     console.error("保存用户失败:", error);
                     showMessage('操作失败', '无法保存用户到服务器。', 'error');
@@ -1115,12 +1073,9 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 if (confirm(`确认要删除用户 ${user.name} (${user.username}) 吗？`)) {
                     isLoading.value = true;
                     try {
-                        // 删除 (DELETE /api/users/{id})
                         await api.delete(`/api/users/${user.id}`);
-
                         showMessage('操作成功', `用户 ${user.name} 已删除`);
-                        await fetchUsers(); // 重新加载用户列表
-
+                        await fetchUsers();
                     } catch (error) {
                         console.error("删除用户失败:", error);
                         showMessage('操作失败', '无法从服务器删除该用户。', 'error');
@@ -1130,19 +1085,15 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 }
             };
 
-// 4. 借还逻辑 (全部改为 API 调用)
+// 4. 借还逻辑 (API)
             const handleBorrow = async (book) => {
                 isLoading.value = true;
                 try {
-                    // 假设后端 API 是 /api/records/borrow
                     await api.post('/api/records/borrow', { bookId: book.id });
-
                     showMessage('借阅成功', `《${book.title}》 已借阅。`);
-                    await fetchAllData(); // 刷新图书库存和借阅记录
-
+                    await fetchAllData();
                 } catch (error) {
                     console.error("借阅失败:", error);
-                    // 后端应返回具体的错误信息
                     const errorMsg = error.response?.data?.message || '操作失败，请稍后再试。';
                     showMessage('借阅失败', errorMsg, 'error');
                 } finally {
@@ -1153,12 +1104,9 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const handleReserve = async (book) => {
                 isLoading.value = true;
                 try {
-                    // 假设后端 API 是 /api/records/reserve
                     await api.post('/api/records/reserve', { bookId: book.id });
-
                     showMessage('预约成功', `《${book.title}》 已预约。`);
                     await fetchAllData();
-
                 } catch (error) {
                     console.error("预约失败:", error);
                     const errorMsg = error.response?.data?.message || '您已预约过此书或操作失败。';
@@ -1171,12 +1119,9 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const handleRenew = async (record) => {
                 isLoading.value = true;
                 try {
-                    // 假设后端 API 是 /api/records/renew/{recordId}
                     await api.put(`/api/records/renew/${record.id}`);
-
                     showMessage('续借成功', '续借申请已通过。');
-                    await fetchRecords(); // 仅刷新借阅记录
-
+                    await fetchRecords();
                 } catch (error) {
                     console.error("续借失败:", error);
                     const errorMsg = error.response?.data?.message || '续借失败，可能已达续借次数。';
@@ -1192,21 +1137,17 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                     showMessage('归还失败', '请输入图书ID或ISBN', 'error');
                     return;
                 }
-
                 isLoading.value = true;
                 try {
-                    // 假设后端 API 是 /api/records/return
                     const payload = {
                         bookIdentifier: bookIdentifier,
-                        userId: returnUserId.value.trim() || null // 如果 userId 为空，后端应能处理
+                        userId: returnUserId.value.trim() || null
                     };
                     await api.post('/api/records/return', payload);
-
                     showMessage('归还成功', '图书已成功归还。');
                     returnBookId.value = '';
                     returnUserId.value = '';
-                    await fetchAllData(); // 刷新图书库存和记录
-
+                    await fetchAllData();
                 } catch (error) {
                     console.error("归还失败:", error);
                     const errorMsg = error.response?.data?.message || '未找到该书的借阅记录。';
@@ -1219,12 +1160,9 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const handleProcessReservation = async (reservation) => {
                 isLoading.value = true;
                 try {
-                    // 假设后端 API 是 /api/records/process-reservation/{reservationId}
                     await api.post(`/api/records/process-reservation/${reservation.id}`);
-
                     showMessage('处理成功', '已成功为用户办理借阅。');
                     await fetchAllData();
-
                 } catch (error) {
                     console.error("处理预约失败:", error);
                     const errorMsg = error.response?.data?.message || '处理失败，可能库存不足。';
@@ -1233,6 +1171,17 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                     isLoading.value = false;
                 }
             };
+
+// --- onMounted (自动登录检查) ---
+            onMounted(() => {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    // 模拟从 token 解析用户（在真实应用中，您会验证 token 或获取 /me 接口）
+                    // 为了演示，我们重新加载所有数据
+                    // 在 handleLogin 中加载数据更合适，这里我们假设 token 有效
+                    // handleLogin(); // 实际应用中不应自动登录
+                }
+            });
 
 
 // --- 返回 setup 对象 ---
@@ -1253,10 +1202,12 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 currentBook,
                 currentUserForm,
                 analysisData,
-                isRegistering, // 新增
-                registerForm,  // 新增
-                registerError, // 新增
-                isLoading,     // 新增
+                isRegistering,
+                registerForm,
+                registerError,
+                isLoading,
+                categoryStats, // 暴露给模板
+                peakTimeStats, // 暴露给模板
 
                 // 计算属性
                 visiblePages,
@@ -1281,9 +1232,9 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 isOverdue,
                 getBookById,
                 getUserById,
-                handleRegister, // 新增
+                handleRegister,
 
-                // 业务方法 (已全部改为 API 调用)
+                // 业务方法
                 openBookModal,
                 handleSaveBook,
                 handleDeleteBook,

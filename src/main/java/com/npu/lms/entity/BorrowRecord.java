@@ -1,10 +1,11 @@
-package com.npu.lms.entity; // 替换为您的包名
+package com.npu.lms.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime; // 引入 LocalDateTime
 
 @Entity
-@Table(name = "borrow_records")
+@Table(name = "borrow_records") // 确保表名与您的数据库一致
 public class BorrowRecord {
 
     @Id
@@ -19,31 +20,42 @@ public class BorrowRecord {
     @JoinColumn(name = "book_id", nullable = false)
     private Book book;
 
-    private LocalDate borrowDate; // 借阅日期或预约日期
-    private LocalDate dueDate;   // 应还日期
-    private LocalDate returnDate; // 实际归还日期
+    // --- 【修改 1】 ---
+    // 将 borrowDate (LocalDate) 更改为 borrowTime (LocalDateTime)
+    @Column(name = "borrow_time")
+    private LocalDateTime borrowTime;
 
-    private String status; // "borrowed", "returned", "reserved"
+    @Column(name = "due_date")
+    private LocalDate dueDate;
 
-    // --- Getters / Setters ---
+    // --- 【修改 2】 ---
+    // 将 returnDate (LocalDate) 更改为 returnTime (LocalDateTime)
+    @Column(name = "return_time")
+    private LocalDateTime returnTime;
+
+    @Column(nullable = false)
+    private String status; // 例如: "borrowed", "returned", "reserved"
+
+
+    // --- Getters and Setters (请确保所有都已更新) ---
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
-
     public Book getBook() { return book; }
     public void setBook(Book book) { this.book = book; }
 
-    public LocalDate getBorrowDate() { return borrowDate; }
-    public void setBorrowDate(LocalDate borrowDate) { this.borrowDate = borrowDate; }
+    // 对应 borrowTime
+    public LocalDateTime getBorrowTime() { return borrowTime; }
+    public void setBorrowTime(LocalDateTime borrowTime) { this.borrowTime = borrowTime; }
 
     public LocalDate getDueDate() { return dueDate; }
     public void setDueDate(LocalDate dueDate) { this.dueDate = dueDate; }
 
-    public LocalDate getReturnDate() { return returnDate; }
-    public void setReturnDate(LocalDate returnDate) { this.returnDate = returnDate; }
+    // 对应 returnTime
+    public LocalDateTime getReturnTime() { return returnTime; }
+    public void setReturnTime(LocalDateTime returnTime) { this.returnTime = returnTime; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
