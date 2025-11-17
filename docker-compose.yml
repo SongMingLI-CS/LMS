@@ -1,0 +1,68 @@
+# Docker Compose 文件版本
+version: '3.8'
+
+# 定义所有服务
+services:
+
+  # 1. 您的后端应用服务 (包含前端 HTML)
+  lms-backend:
+    # 使用当前目录下的 Dockerfile 来构建镜像
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # (关键) 这里传递 JAR 包名称，确保 Dockerfile 能找到它
+      args:
+        # 🚨 请注意：这里使用 *.jar 来匹配 target 目录下的 JAR 文件
+        #    如果您的 target 目录有多个 JAR 包，请将其修改为精确的文件名
+        #    例如：JAR_FILE: target/lms-backend-1.0.jar
+        JAR_FILE: target/lms-backend-0.0.1-SNAPSHOT.jar
+    
+    # 容器名称
+    container_name: lms-backend-container
+    
+    # 端口映射: [云服务器IP]:8080 -> 容器:8080
+    ports:
+      - "8080:8080"
+      
+    # 环境变量: 覆盖 application.properties，告诉 Spring Boot 如何连接数据库
+    # 注意：连接地址使用服务名 'mysql-db'
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/lms_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=lmsuser
+      - SPRING_DATASOURCE_PASSWORD=lmsuserpassword
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update # 自动更新数据库表结构
+      
+    # 依赖关系: 确保在 mysql-db 启动后再启动此服务
+    depends_on:
+      - mysql-db
+      
+    # 重启策略
+    restart: always
+
+  # 2. MySQL 数据库服务
+  mysql-db:
+    # 使用官方 MySQL 8.0 镜像
+    image: mysql:8.0
+    container_name: lms-mysql-container
+    
+    # 数据库环境变量:
+    environment:
+      MYSQL_DATABASE: lms_db                 # 数据库名
+      MYSQL_ROOT_PASSWORD: @1721420101dcs
+      MYSQL_USER: lmsuser                    # 创建一个新用户
+      MYSQL_PASSWORD: lmsuserpassword        # 新用户的密码
+      
+    # 数据持久化: 将数据存储在云服务器的磁盘上
+    volumes:
+      - db-data:/var/lib/mysql
+      
+    # 端口映射 (可选): 映射 3306 端口，方便您用本地工具连接
+    ports:
+      - "3306:3306"
+      
+    # 重启策略
+    restart: always
+
+# 定义数据卷 (用于持久化 MySQL 数据)
+volumes:
+  db-data:
