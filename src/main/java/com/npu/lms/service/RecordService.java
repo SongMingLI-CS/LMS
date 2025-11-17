@@ -6,6 +6,7 @@ import com.npu.lms.entity.User;
 import com.npu.lms.repository.BookRepository;
 import com.npu.lms.repository.BorrowRecordRepository;
 import com.npu.lms.repository.UserRepository;
+import com.npu.lms.dto.RecordDTO; // 引入 RecordDTO
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors; // 引入 Collectors 用于 Stream API
 
 @Service
 public class RecordService {
@@ -24,20 +26,51 @@ public class RecordService {
     private BookRepository bookRepository;
 
     @Autowired
-    private UserRepository userRepository; // 用于还书时查找用户
+    private UserRepository userRepository;
 
     private final int MAX_BORROW_LIMIT = 5; // 最大借阅数量
 
+    // --- 【修正后的核心方法】 ---
     // 获取记录 (根据用户角色)
-    public List<BorrowRecord> getRecordsForUser(User user) {
+    public List<RecordDTO> getRecordsForUser(User user) {
         if (user == null) {
             throw new RuntimeException("用户未登录");
         }
+
+        List<BorrowRecord> rawRecords;
         if ("USER".equals(user.getRole())) {
-            return recordRepository.findByUserId(user.getId());
+            rawRecords = recordRepository.findByUserId(user.getId());
+        } else {
+            // ADMIN 或 SUPERADMIN 返回所有记录
+            rawRecords = recordRepository.findAll();
         }
-        // ADMIN 或 SUPERADMIN
-        return recordRepository.findAll();
+
+        // ***【核心修复逻辑：将实体映射为包含名称的 DTO】***
+        return rawRecords.stream().map(record -> {
+            RecordDTO dto = new RecordDTO();
+
+            // 确保关联对象不为空 (防止空指针异常)
+            Book book = record.getBook();
+            User recordUser = record.getUser();
+
+            // 1. 填充 DTO 的 ID 和日期等原始字段
+            dto.setId(record.getId());
+            dto.setBorrowDate(record.getBorrowDate());
+            dto.setDueDate(record.getDueDate());
+            dto.setStatus(record.getStatus());
+
+            // 2. 填充关联名称 (BookTitle 和 UserName)
+            // 实体中的 getBook() 和 getUser() 必须是正确的方法名
+            dto.setBookTitle(book != null ? book.getTitle() : "图书已删除");
+            dto.setUserName(recordUser != null ? recordUser.getName() : "未知用户");
+
+            // 3. 填充 ID (方便前端操作)
+            dto.setBookId(book != null ? book.getId() : null);
+            dto.setUserId(recordUser != null ? recordUser.getId() : null);
+
+            return dto;
+        }).collect(Collectors.toList());
+        // -----------------------------------------------------------------
     }
 
     // 1. 借书
