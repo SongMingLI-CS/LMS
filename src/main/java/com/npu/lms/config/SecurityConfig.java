@@ -77,6 +77,7 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(authz -> authz
 
+
                         // --- 公开路径 (不变) ---
                         .requestMatchers("/", "/index.html", "/favicon.ico", "/login", "/register").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/books").permitAll()
@@ -85,6 +86,8 @@ public class SecurityConfig {
                         // --- (***关键修改***) ---
 
                         // --- 管理员权限 (ADMIN / SUPERADMIN) ---
+                        // --- (新增!) 分析导出 (仅限管理员) ---
+                        .requestMatchers("/api/analysis/export/**").hasAnyRole("ADMIN", "SUPERADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/books").hasAnyRole("ADMIN", "SUPERADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/books/**").hasAnyRole("ADMIN", "SUPERADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/books/**").hasAnyRole("ADMIN", "SUPERADMIN")
@@ -102,6 +105,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/users").hasAnyRole("SUPERADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/users/**").hasAnyRole("SUPERADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasAnyRole("SUPERADMIN")
+
+                        // --- (新增!) 个人资料路径 (所有登录用户) ---
+                        .requestMatchers("/api/profile/**").authenticated() // 确保所有登录用户都能访问自己的资料
 
                         // --- 其他 (不变) ---
                         .anyRequest().authenticated()

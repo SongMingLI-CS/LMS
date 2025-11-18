@@ -10,10 +10,14 @@ import org.springframework.data.repository.query.Param; // 引入 Param
 import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.time.LocalDateTime; // 引入 LocalDateTime
+import java.util.Optional; // 【新增】确保导入 Optional
 
 @Repository
 public interface BookRepository extends JpaRepository<Book, Long> {
-
+    // 【新增】根据 ISBN 查找图书的方法
+    Optional<Book> findByIsbn(String isbn);
+    // 【新增】查找库存低于阈值的图书
+    List<Book> findByAvailableLessThan(int threshold);
     // (图书分类统计查询保持不变)
     @Query("SELECT NEW com.npu.lms.dto.CategoryStatsDTO(b.category, COUNT(b.id)) " +
             "FROM Book b WHERE b.category IS NOT NULL " +
