@@ -6,6 +6,10 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async; // 引入异步注解
 import org.springframework.stereotype.Service;
+import jakarta.mail.MessagingException; // 【新增】
+import jakarta.mail.internet.MimeMessage; // 【新增】
+import org.springframework.mail.javamail.MimeMessageHelper; // 【新增】
+import org.springframework.core.io.InputStreamSource; // 【新增】
 
 import java.util.List; // 【新增】
 
@@ -38,6 +42,51 @@ public class EmailService {
         } catch (Exception e) {
             // 在生产环境中，这里应该有更健壮的错误处理
             System.err.println("发送邮件失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 【新增 V3】发送带附件的邮件 (MIME 邮件)
+     *
+     * @param toEmails    收件人列表
+     * @param subject     主题
+     * @param body        正文 (支持 HTML)
+     * @param attachments 附件列表
+     */
+    @Async // 同样异步执行
+    public void sendEmailWithAttachments(List<String> toEmails, String subject, String body, List<EmailAttachment> attachments) {
+        if (toEmails == null || toEmails.isEmpty()) {
+            System.err.println("发送邮件失败：收件人列表为空");
+            return;
+        }
+
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            // true = multipart message (需要附件)
+            // "UTF-8" = 编码
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+
+            helper.setFrom(fromEmailAddress);
+            helper.setTo(toEmails.toArray(new String[0]));
+            helper.setSubject(subject);
+            // true = body is HTML
+            helper.setText(body, true);
+
+            // 3. 添加附件
+            if (attachments != null) {
+                for (EmailAttachment attachment : attachments) {
+                    helper.addAttachment(
+                            attachment.getFilename(),
+                            attachment.getInputStreamSource(),
+                            attachment.getContentType()
+                    );
+                }
+            }
+
+            mailSender.send(mimeMessage);
+
+        } catch (MessagingException e) {
+            System.err.println("发送 MIME 邮件失败: " + e.getMessage());
         }
     }
 
