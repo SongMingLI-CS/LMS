@@ -21,10 +21,10 @@ public interface BorrowRecordRepository extends JpaRepository<BorrowRecord, Long
 
     // --- (数据分析 JPQL 查询) ---
 
-    // 1. 热门图书 Top 5
+    // 1. 热门图书 Top 5 (【修复后】)
     @Query("SELECT NEW com.npu.lms.dto.PopularBookDTO(b.title, COUNT(r.book.id)) " +
             "FROM BorrowRecord r JOIN r.book b " +
-            "WHERE r.status = 'borrowed' " +
+            // 我们要统计所有借阅记录 (包括 'borrowed' 和 'returned')，所以删除 WHERE r.status
             "GROUP BY b.title ORDER BY COUNT(r.book.id) DESC")
     List<PopularBookDTO> findTop5PopularBooks(Pageable pageable);
 

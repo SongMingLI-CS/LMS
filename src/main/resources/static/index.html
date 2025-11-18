@@ -621,14 +621,20 @@
 
                                 <div class="p-6 bg-white rounded-lg shadow-lg">
                                     <div class="flex justify-between items-center mb-4">
-                                        <h3 class="text-xl font-semibold">热门图书 Top 5</h3>
+                                        <h3 class="text-xl font-semibold">热门图书 Top 5 (真实数据)</h3>
                                         <button
                                                 @click="handleExportAnalysis('popular-books', 'popular_books.xlsx')"
                                                 class="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full transition">
                                             <ion-icon name="download-outline" class="text-xl"></ion-icon>
                                         </button>
                                     </div>
+
                                     <ul class="space-y-3">
+                                        <li v-if="popularBooks.length === 0" class="text-gray-500">暂无数据</li>
+                                        <li v-for="(book, index) in popularBooks" :key="book.title" class="flex items-center justify-between">
+                                            <span class="font-medium">{{ index + 1 }}. {{ book.title }}</span>
+                                            <span class="text-gray-600">{{ book.borrowCount }} 次借阅</span>
+                                        </li>
                                     </ul>
                                 </div>
 
