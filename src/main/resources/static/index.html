@@ -36,7 +36,6 @@
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased">
-<h1 style="color:red;font-size:50px;position:fixed;top:0;left:0;z-index:9999;">【2025-11-17 终极测试版】</h1>
 
 <div id="app" class="flex h-screen overflow-hidden">
 
@@ -61,7 +60,7 @@
             <div class="w-full max-w-md p-8 bg-white rounded-lg shadow-2xl">
                 <transition name="fade" mode="out-in">
 
-                    <div v-if="!isRegistering && !isVerificationStep" key="login">
+                    <div v-if="!isRegistering && !isVerificationStep && !isForgotPassword" key="login">
                         <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">系统登录</h2>
                         <form @submit.prevent="handleLogin">
                             <div class="mb-4">
@@ -343,15 +342,35 @@
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                            <button v-if="book.available > 0 && currentUser.role !== 'user'" @click="handleBorrow(book)" class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+
+                                            <button
+                                                    v-if="book.available > 0 && !isBookBorrowedByUser(book) && !isBookReservedByUser(book)"
+                                                    @click="handleBorrow(book)"
+                                                    class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                                            >
                                                 借阅
                                             </button>
-                                            <button v-else-if="currentUser.role !== 'user'" @click="handleReserve(book)" class="px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600">
+
+                                            <button
+                                                    v-else-if="book.available === 0 && !isBookBorrowedByUser(book) && !isBookReservedByUser(book)"
+                                                    @click="handleReserve(book)"
+                                                    class="px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
+                                            >
                                                 预约
                                             </button>
-                                            <button v-if="currentUser.role !== 'user'" @click="openBookModal(book)" class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600">编辑</button>
-                                            <button v-if="currentUser.role !== 'user'" @click="handleDeleteBook(book)" class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600">删除</button>
-                                            <span v-if="currentUser.role === 'user'">--</span>
+
+                                            <span v-else-if="isBookBorrowedByUser(book)" class="px-2 py-1 text-xs font-semibold rounded-lg bg-blue-100 text-blue-800">
+                                                已借阅
+                                            </span>
+                                            <span v-else-if="isBookReservedByUser(book)" class="px-2 py-1 text-xs font-semibold rounded-lg bg-yellow-100 text-yellow-800">
+                                                已预约
+                                            </span>
+
+                                            <template v-if="currentUser.role !== 'user'">
+                                                <button @click="openBookModal(book)" class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600">编辑</button>
+                                                <button @click="handleDeleteBook(book)" class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600">删除</button>
+                                            </template>
+
                                         </td>
                                     </tr>
                                     </tbody>
@@ -861,6 +880,24 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
             const getUserById = (id) => users.value.find(u => u.id === id);
             const clearBookSearch = () => bookSearchQuery.value = '';
 
+            const isBookBorrowedByUser = (book) => {
+                if (!currentUser.value) return false;
+                return borrowRecords.value.some(r =>
+                    r.bookId === book.id &&
+                    r.userId === currentUser.value.id &&
+                    r.status === 'borrowed'
+                );
+            };
+
+            const isBookReservedByUser = (book) => {
+                if (!currentUser.value) return false;
+                return borrowRecords.value.some(r =>
+                    r.bookId === book.id &&
+                    r.userId === currentUser.value.id &&
+                    (r.status === 'reserved' || r.status === 'awaiting_pickup')
+                );
+            };
+
 // --- 3. 数据获取 (API) ---
             const fetchAnalysisData = async () => {
                 try {
@@ -1300,7 +1337,7 @@ alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 te
                 handleLogin, handleLogout, getRoleName, closeModal, clearBookSearch, isOverdue,
                 getBookById, getUserById, handleRegister, handleVerification, handleExportExcel,
                 openBookModal, handleSaveBook, handleDeleteBook, handleForgotPassword, handleResetPassword,
-                openUserModal, handleSaveUser, handleDeleteUser,
+                openUserModal, handleSaveUser, handleDeleteUser,isBookBorrowedByUser, isBookReservedByUser,
                 handleBorrow, handleReserve, handleRenew, handleReturn, handleProcessReservation,
             };
         }
