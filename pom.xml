@@ -94,6 +94,12 @@
 			<scope>test</scope>
 		</dependency>
 
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-aop</artifactId>
+		</dependency>
+
 	</dependencies>
 
 	<!-- 5. 构建插件 (将代码打包成一个可运行的 .jar 文件) -->

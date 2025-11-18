@@ -105,6 +105,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/users").hasAnyRole("SUPERADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/users/**").hasAnyRole("SUPERADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasAnyRole("SUPERADMIN")
+                        // --- (新增!) 审计日志 (仅限超管) ---
+                        .requestMatchers("/api/audit-logs/**").hasRole("SUPERADMIN")
 
                         // --- (新增!) 个人资料路径 (所有登录用户) ---
                         .requestMatchers("/api/profile/**").authenticated() // 确保所有登录用户都能访问自己的资料

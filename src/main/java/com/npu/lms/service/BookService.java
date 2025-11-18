@@ -3,6 +3,8 @@ package com.npu.lms.service;
 import com.npu.lms.dto.CategoryStatsDTO;
 import com.npu.lms.dto.StagnantBookDTO;
 import com.npu.lms.entity.Book;
+import com.npu.lms.entity.BookBatch;
+import com.npu.lms.repository.BookBatchRepository;
 import com.npu.lms.repository.BookRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -17,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -34,6 +37,8 @@ public class BookService {
 
     @Autowired
     private BookRepository bookRepository;
+    @Autowired // 【新增】
+    private BookBatchRepository bookBatchRepository;
     private static final Logger log = LoggerFactory.getLogger(BookService.class); // 【新增】
     // --- (基础 CRUD 方法) ---
 
@@ -50,7 +55,24 @@ public class BookService {
     // 用于图书入库
     @Transactional
     public Book saveBook(Book book) {
-        return bookRepository.save(book);
+        // 1. 保存图书实体
+        Book savedBook = bookRepository.save(book);
+
+        // 2. 【新增】自动创建第一批次
+        //    (我们假设 saveBook 总是用于新书入库，所以 stock > 0)
+        if (book.getId() == null && savedBook.getStock() > 0) {
+            BookBatch batch = new BookBatch();
+            batch.setBook(savedBook);
+            batch.setQuantity(savedBook.getStock());
+            batch.setSupplier(savedBook.getSupplier());
+            batch.setPrice(savedBook.getPrice());
+            // batch.setPurchaseDate(LocalDate.now()); // 构造函数已设置
+
+            bookBatchRepository.save(batch);
+            log.info("【批次】已为新书 (ID: {}) 创建了初始批次，数量: {}", savedBook.getId(), savedBook.getStock());
+        }
+
+        return savedBook; // 3. 返回保存的图书
     }
 
     // 用于图书出库
@@ -59,6 +81,7 @@ public class BookService {
         bookRepository.deleteById(id);
     }
 
+    // 用于图书编辑
     // 用于图书编辑
     @Transactional
     public Book updateBook(Long id, Book bookDetails) {
@@ -71,8 +94,8 @@ public class BookService {
         book.setTitle(bookDetails.getTitle());
         book.setAuthor(bookDetails.getAuthor());
         book.setIsbn(bookDetails.getIsbn());
-        book.setStock(bookDetails.getStock());
-        book.setAvailable(bookDetails.getAvailable());
+        // book.setStock(bookDetails.getStock());
+        // book.setAvailable(bookDetails.getAvailable());//管理员在编辑图书信息时不能修改库存
         book.setCategory(bookDetails.getCategory());
         book.setCover(bookDetails.getCover());
         book.setPublisher(bookDetails.getPublisher());
@@ -84,7 +107,6 @@ public class BookService {
 
         return bookRepository.save(book);
     }
-
     // --- 【数据分析方法 (2 个)】 ---
 
     // 1. 图书分类占比
@@ -106,7 +128,7 @@ public class BookService {
      * @return 包含成功和失败信息的 Map
      */
     @Transactional
-    public Map<String, Object> importBooksFromExcel(MultipartFile file) {
+    public Map<String, Object> importBooksFromExcel(MultipartFile file) throws IOException {
         List<Book> booksToSave = new ArrayList<>();
         List<String> errorMessages = new ArrayList<>();
         int successCount = 0;
@@ -174,24 +196,33 @@ public class BookService {
                     log.warn(errorMsg); // 记录警告日志
                 }
             }
-
-            // 3. 批量保存到数据库
             if (!booksToSave.isEmpty()) {
-                bookRepository.saveAll(booksToSave);
+                // 3a. 保存所有图书
+                List<Book> savedBooks = bookRepository.saveAll(booksToSave);
+                log.info("【导入】成功保存 {} 本图书。", savedBooks.size());
+
+                // 3b. 【新增】为所有已保存的图书创建批次
+                List<BookBatch> batchesToSave = new ArrayList<>();
+                for (Book savedBook : savedBooks) {
+                    BookBatch batch = new BookBatch();
+                    batch.setBook(savedBook);
+                    batch.setQuantity(savedBook.getStock());
+                    batch.setSupplier(savedBook.getSupplier());
+                    batch.setPrice(savedBook.getPrice());
+                    // batch.setPurchaseDate(LocalDate.now()); // 构造函数已设置
+                    batchesToSave.add(batch);
+                }
+                bookBatchRepository.saveAll(batchesToSave);
+                log.info("【导入】成功为 {} 本图书创建了批次记录。", batchesToSave.size());
             }
 
-        } catch (Exception e) {
-            log.error("解析 Excel 文件失败", e);
-            errorMessages.add("文件处理失败: " + e.getMessage());
-            failCount = -1; // -1 表示文件级别错误
+            // 4. 返回处理结果
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", successCount);
+            result.put("failed", failCount);
+            result.put("errors", errorMessages);
+            return result;
         }
-
-        // 4. 返回处理结果
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", successCount);
-        result.put("failed", failCount);
-        result.put("errors", errorMessages);
-        return result;
     }
 
     /**
