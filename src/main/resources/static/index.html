@@ -3,740 +3,362 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>图书馆管理系统 (LMS)</title>
+    <title>LMS 图书馆管理系统</title>
 
-    <!-- 1. 先加载 Vue、Axios、Ionicons -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
     <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
 
-    <!-- 2. 最后加载 Tailwind（必须放最后！） -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                    colors: {
+                        gray: { 850: '#1f2937', 900: '#111827', 950: '#030712' },
+                        brand: { 500: '#2563eb', 600: '#1d4ed8' }
+                    }
+                }
+            }
+        }
+    </script>
 
     <style>
-        /* 样式保持不变 */
-        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
-        .fade-enter-from, .fade-leave-to { opacity: 0; }
-        .sidebar-link.active { background-color: #3b82f6; color: #ffffff; }
+        body { background-color: #f9fafb; color: #374151; }
+        /* 自定义滚动条 */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #a0aec0; border-radius: 3px; }
-        ::-webkit-scrollbar-track { background: #e2e8f0; }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top-color: #ffffff;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+
+        /* 加载动画 */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader { width: 24px; height: 24px; border: 3px solid #e5e7eb; border-top-color: #374151; border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+        /* 侧边栏激活态 */
+        .nav-link.active { background-color: #f3f4f6; color: #111827; font-weight: 600; border-right: 3px solid #2563eb; }
+
+        /* 简单的淡入淡出 */
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
     </style>
 </head>
-<body class="bg-gray-100 font-sans antialiased">
+<body class="h-screen overflow-hidden">
 
-<div id="app" class="flex h-screen overflow-hidden">
+<div id="app" class="flex h-full">
 
     <transition name="fade">
-        <div v-if="isLoading" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black bg-opacity-70">
-            <div class="spinner"></div>
-            <p class="text-white text-lg mt-4">请稍候...</p>
+        <div v-if="isLoading" class="fixed inset-0 z-[100] flex items-center justify-center bg-white/80 backdrop-blur-sm">
+            <div class="loader"></div>
         </div>
     </transition>
 
-    <div v-if="!currentUser" class="w-full h-screen flex bg-white">
-
-        <div class="hidden lg:flex w-1/2 h-full items-center justify-center p-12"
-             style="background-image: url('https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=1974&q=80'); background-size: cover; background-position: center;">
-            <div class="text-center bg-black bg-opacity-50 p-8 rounded-lg shadow-xl">
-                <h1 class="text-white text-4xl font-bold mb-4">LMS 图书馆管理系统</h1>
-                <p class="text-gray-200 text-lg">西北工业大学 | 软件工程</p>
+    <div class="fixed top-6 right-6 z-[110] flex flex-col gap-3 pointer-events-none">
+        <transition-group name="fade">
+            <div v-for="toast in toasts" :key="toast.id"
+                 class="pointer-events-auto min-w-[300px] bg-white border border-gray-200 shadow-lg rounded-lg p-4 flex items-start">
+                <ion-icon :name="toast.type === 'error' ? 'alert-circle' : 'checkmark-circle'"
+                          :class="['text-xl mr-3 mt-0.5', toast.type === 'error' ? 'text-red-500' : 'text-green-500']"></ion-icon>
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-900">{{ toast.title }}</h4>
+                    <p class="text-xs text-gray-500 mt-1">{{ toast.text }}</p>
+                </div>
             </div>
-        </div>
+        </transition-group>
+    </div>
 
-        <div class="w-full lg:w-1/2 h-full flex items-center justify-center p-8 bg-gray-50 overflow-y-auto">
-            <div class="w-full max-w-md p-8 bg-white rounded-lg shadow-2xl">
-                <transition name="fade" mode="out-in">
-
-                    <div v-if="!isRegistering && !isVerificationStep && !isForgotPassword" key="login">
-                        <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">系统登录</h2>
-                        <form @submit.prevent="handleLogin">
-                            <div class="mb-4">
-                                <label for="username" class="block text-sm font-medium text-gray-700 mb-2">学号 / 用户名</label>
-                                <input type="text" id="username" v-model="loginForm.username" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入学号或管理员账号" required>
-                            </div>
-                            <div class="mb-6">
-                                <label for="password" class="block text-sm font-medium text-gray-700 mb-2">密码</label>
-                                <input type="password" id="password" v-model="loginForm.password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入密码" required>
-                            </div>
-                            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition duration-300">
-                                登 录
-                            </button>
-                            <p v-if="loginError" class="text-red-500 text-sm text-center mt-4">{{ loginError }}</p>
-                        </form>
-                        <div class="mt-6 text-center">
-                            <a href="#" @click.prevent="isRegistering = true; isVerificationStep = false; loginError = '';" class="text-sm text-blue-600 hover:underline">
-                                还没有账号？立即注册
-                            </a>
-                            <a href="#" @click.prevent="isRegistering = false; isVerificationStep = false; isForgotPassword = true; loginError = '';" class="text-sm text-gray-500 hover:underline mt-2 inline-block">
-                                忘记密码？
-                            </a>
-                        </div>
-                    </div>
-
-                    <div v-if="isRegistering && !isVerificationStep" key="register">
-                        <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">用户注册</h2>
-                        <form @submit.prevent="handleRegister">
-                            <div class="mb-4">
-                                <label for="reg-username" class="block text-sm font-medium text-gray-700 mb-2">学号 (唯一)</label>
-                                <input type="text" id="reg-username" v-model="registerForm.username" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="请输入您的学号" required>
-                            </div>
-                            <div class="mb-4">
-                                <label for="reg-name" class="block text-sm font-medium text-gray-700 mb-2">姓名</label>
-                                <input type="text" id="reg-name" v-model="registerForm.name" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="请输入您的真实姓名" required>
-                            </div>
-                            <div class="mb-4">
-                                <label for="reg-email" class="block text-sm font-medium text-gray-700 mb-2">邮箱</label>
-                                <input type="email" id="reg-email" v-model="registerForm.email" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="请输入您的邮箱 (用于验证)" required>
-                            </div>
-                            <div class="mb-4">
-                                <label for="reg-password" class="block text-sm font-medium text-gray-700 mb-2">密码</label>
-                                <input type="password" id="reg-password" v-model="registerForm.password" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="输入密码" required>
-                            </div>
-                            <div class="mb-6">
-                                <label for="reg-confirm" class="block text-sm font-medium text-gray-700 mb-2">确认密码</label>
-                                <input type="password" id="reg-confirm" v-model="registerForm.confirmPassword" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="再次输入密码" required>
-                            </div>
-                            <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition duration-300">
-                                发送验证码
-                            </button>
-                            <p v-if="registerError" class="text-red-500 text-sm text-center mt-4">{{ registerError }}</p>
-                        </form>
-                        <div class="mt-6 text-center">
-                            <a href="#" @click.prevent="isRegistering = false; isVerificationStep = false; registerError = '';" class="text-sm text-blue-600 hover:underline">
-                                已有账号？返回登录
-                            </a>
-                        </div>
-                    </div>
-
-                    <div v-if="isVerificationStep" key="verify">
-                        <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">验证您的账户</h2>
-                        <p class="text-center text-gray-600 mb-4">
-                            请输入发送至您邮箱的 6 位验证码以激活账户。
-                        </p>
-                        <p v-if="registerSuccess" class="text-green-500 text-sm text-center mb-4">{{ registerSuccess }}</p>
-
-                        <form @submit.prevent="handleVerification">
-                            <div class="mb-4">
-                                <label for="verification-code" class="block text-sm font-medium text-gray-700 mb-2">验证码</label>
-                                <input type="text" id="verification-code" v-model="verificationCode" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="6 位验证码" required>
-                            </div>
-                            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition duration-300">
-                                激活账户
-                            </button>
-                            <p v-if="registerError" class="text-red-500 text-sm text-center mt-4">{{ registerError }}</p>
-                        </form>
-                        <div class="mt-6 text-center">
-                            <a href="#" @click.prevent="isRegistering = false; isVerificationStep = false; registerError = ''; registerSuccess = '';" class="text-sm text-blue-600 hover:underline">
-                                返回登录
-                            </a>
-                        </div>
-                    </div>
-                    <div v-if="isForgotPassword && !isRegistering && !isVerificationStep" key="forgot">
-                        <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">重置密码</h2>
-                        <p v-if="registerSuccess" class="text-green-500 text-sm text-center mb-4">{{ registerSuccess }}</p>
-
-                        <form @submit.prevent="handleForgotPassword" class="mb-4">
-                            <div class="mb-4">
-                                <label for="reset-email" class="block text-sm font-medium text-gray-700 mb-2">注册邮箱</label>
-                                <input type="email" id="reset-email" v-model="resetForm.email" class="w-full px-4 py-2 border rounded-lg" placeholder="输入您注册时使用的邮箱" required>
-                            </div>
-                            <button type="submit" class="w-full bg-orange-500 text-white py-2 rounded-lg font-semibold hover:bg-orange-600">
-                                发送重置码
-                            </button>
-                        </form>
-
-                        <hr class="my-6">
-
-                        <form @submit.prevent="handleResetPassword">
-                            <div class="mb-4">
-                                <label for="reset-code" class="block text-sm font-medium text-gray-700 mb-2">重置码</label>
-                                <input type="text" id="reset-code" v-model="resetForm.code" class="w-full px-4 py-2 border rounded-lg" placeholder="输入您收到的 6 位重置码" required>
-                            </div>
-                            <div class="mb-6">
-                                <label for="reset-password" class="block text-sm font-medium text-gray-700 mb-2">新密码</label>
-                                <input type="password" id="reset-password" v-model="resetForm.newPassword" class="w-full px-4 py-2 border rounded-lg" placeholder="输入您的新密码" required>
-                            </div>
-                            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">
-                                确认重置密码
-                            </button>
-                            <p v-if="registerError" class="text-red-500 text-sm text-center mt-4">{{ registerError }}</p>
-                        </form>
-
-                        <div class="mt-6 text-center">
-                            <a href="#" @click.prevent="isForgotPassword = false; isRegistering = false; isVerificationStep = false; registerError = ''; registerSuccess = '';" class="text-sm text-blue-600 hover:underline">
-                                返回登录
-                            </a>
-                        </div>
-                    </div>
-
-                </transition>
+    <div v-if="!currentUser" class="w-full h-full flex items-center justify-center bg-gray-50">
+        <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+            <div class="text-center mb-8">
+                <div class="w-12 h-12 bg-gray-900 text-white rounded-lg flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <ion-icon name="library"></ion-icon>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900">LMS 系统</h1>
+                <p class="text-sm text-gray-500 mt-2">西北工业大学 | 软件工程</p>
             </div>
+
+            <transition name="fade" mode="out-in">
+                <div v-if="!isRegistering && !isVerificationStep && !isForgotPassword" key="login">
+                    <form @submit.prevent="handleLogin" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1 uppercase">账号</label>
+                            <input type="text" v-model="loginForm.username" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all" required>
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <label class="block text-xs font-medium text-gray-700 uppercase">密码</label>
+                                <a href="#" @click.prevent="isForgotPassword=true; clearErrors()" class="text-xs text-blue-600 hover:underline">忘记密码?</a>
+                            </div>
+                            <input type="password" v-model="loginForm.password" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition-all" required>
+                        </div>
+                        <button type="submit" :disabled="isLoading" class="w-full py-2.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-black transition disabled:opacity-70">登录</button>
+                        <div v-if="loginError" class="text-red-500 text-sm text-center mt-2">{{ loginError }}</div>
+                    </form>
+                    <div class="mt-6 text-center text-sm text-gray-500">
+                        还没有账号? <a href="#" @click.prevent="isRegistering=true; clearErrors()" class="text-gray-900 font-semibold hover:underline">立即注册</a>
+                    </div>
+                </div>
+
+                <div v-else-if="isRegistering && !isVerificationStep" key="register">
+                    <form @submit.prevent="handleRegister" class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <input type="text" v-model="registerForm.username" placeholder="学号" class="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-gray-900 outline-none" required>
+                            <input type="text" v-model="registerForm.name" placeholder="姓名" class="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-gray-900 outline-none" required>
+                        </div>
+                        <input type="email" v-model="registerForm.email" placeholder="邮箱" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-gray-900 outline-none" required>
+                        <input type="password" v-model="registerForm.password" placeholder="密码" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-gray-900 outline-none" required>
+                        <input type="password" v-model="registerForm.confirmPassword" placeholder="确认密码" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-gray-900 outline-none" required>
+                        <button type="submit" class="w-full py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition">注册</button>
+                        <div v-if="registerError" class="text-red-500 text-sm text-center mt-2">{{ registerError }}</div>
+                    </form>
+                    <button @click="isRegistering=false; clearErrors()" class="w-full mt-4 text-sm text-gray-500 hover:text-gray-900">返回登录</button>
+                </div>
+
+                <div v-else-if="isVerificationStep" key="verify" class="text-center">
+                    <h3 class="font-bold text-gray-900 mb-2">输入验证码</h3>
+                    <p class="text-sm text-gray-500 mb-6">已发送至 {{ registerForm.email }}</p>
+                    <form @submit.prevent="handleVerification">
+                        <input type="text" v-model="verificationCode" class="w-full text-center text-2xl tracking-widest font-mono py-3 border-b-2 border-gray-200 focus:border-gray-900 outline-none mb-6" maxlength="6" placeholder="------" required>
+                        <button type="submit" class="w-full py-2.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-black">激活账户</button>
+                        <div v-if="registerError" class="text-red-500 text-sm mt-4">{{ registerError }}</div>
+                    </form>
+                    <button @click="isVerificationStep=false" class="mt-6 text-sm text-gray-400 hover:text-gray-600">上一步</button>
+                </div>
+
+                <div v-else-if="isForgotPassword" key="forgot">
+                    <h3 class="font-bold text-gray-900 mb-4 text-center">重置密码</h3>
+                    <div v-if="!resetForm.codeSent">
+                        <form @submit.prevent="handleForgotPassword" class="space-y-4">
+                            <input type="email" v-model="resetForm.email" placeholder="注册邮箱" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-gray-900 outline-none" required>
+                            <button class="w-full py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">发送重置码</button>
+                        </form>
+                    </div>
+                    <div v-else>
+                        <form @submit.prevent="handleResetPassword" class="space-y-4">
+                            <input type="text" v-model="resetForm.code" placeholder="验证码" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-gray-900 outline-none" required>
+                            <input type="password" v-model="resetForm.newPassword" placeholder="新密码" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-gray-900 outline-none" required>
+                            <button class="w-full py-2.5 bg-gray-900 text-white rounded-lg font-medium">重置密码</button>
+                        </form>
+                    </div>
+                    <div v-if="registerError" class="text-red-500 text-sm text-center mt-4">{{ registerError }}</div>
+                    <button @click="isForgotPassword=false; clearErrors()" class="w-full mt-4 text-sm text-gray-500 hover:text-gray-900">取消</button>
+                </div>
+            </transition>
         </div>
     </div>
 
     <template v-if="currentUser">
-        <aside :class="['bg-gray-900 text-gray-200 transition-all duration-300', isSidebarOpen ? 'w-64' : 'w-20']">
-            <div class="flex flex-col h-full">
-                <div class="flex items-center justify-between h-16 px-4 border-b border-gray-700">
-                    <span v-if="isSidebarOpen" class="text-xl font-bold text-white">LMS 系统</span>
-                    <button @click="isSidebarOpen = !isSidebarOpen" class="p-2 rounded-lg text-gray-300 hover:bg-gray-700 focus:outline-none">
-                        <ion-icon :name="isSidebarOpen ? 'chevron-back-outline' : 'chevron-forward-outline'" class="text-2xl"></ion-icon>
-                    </button>
-                </div>
-                <nav class="flex-1 overflow-y-auto py-4">
-                    <a v-for="page in visiblePages" :key="page.id"
-                       href="#"
-                       @click.prevent="currentPage = page.id"
-                       :class="['sidebar-link flex items-center py-3 px-4 transition-colors duration-200 hover:bg-gray-700', currentPage === page.id ? 'active' : '']">
-                        <ion-icon :name="page.icon" class="text-2xl" :class="[isSidebarOpen ? 'mr-3' : 'mx-auto']"></ion-icon>
-                        <span v-if="isSidebarOpen" class="font-medium">{{ page.title }}</span>
-                    </a>
-                    <a href="#"
-                       @click.prevent="handleExportExcel"
-                       :class="['sidebar-link flex items-center py-3 px-4 transition-colors duration-200 hover:bg-gray-700', currentPage === 'export' ? 'active' : '']">
-                        <ion-icon name="download-outline" class="text-2xl" :class="[isSidebarOpen ? 'mr-3' : 'mx-auto']"></ion-icon>
-                        <span v-if="isSidebarOpen" class="font-medium">导出为 Excel</span>
-                    </a>
-                </nav>
-                <div class="p-4 border-t border-gray-700">
-                    <div class="flex items-center" :class="[isSidebarOpen ? '' : 'justify-center']">
-                        <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center font-bold text-white">
-                            {{ currentUser.name.charAt(0) }}
-                        </div>
-                        <div v-if="isSidebarOpen" class="ml-3">
-                            <p class="text-sm font-semibold text-white">{{ currentUser.name }}</p>
-                            <p class="text-xs text-gray-400">{{ getRoleName(currentUser.role) }}</p>
-                        </div>
+        <aside :class="['bg-white border-r border-gray-200 text-gray-600 transition-all duration-300 z-50 flex flex-col', isSidebarOpen ? 'w-64' : 'w-16']">
+            <div class="h-16 flex items-center px-4 border-b border-gray-100">
+                <div class="w-8 h-8 bg-gray-900 text-white rounded flex-shrink-0 flex items-center justify-center text-lg"><ion-icon name="library"></ion-icon></div>
+                <span v-if="isSidebarOpen" class="ml-3 font-bold text-gray-900 tracking-tight whitespace-nowrap">LMS 系统</span>
+            </div>
+
+            <nav class="flex-1 py-4 space-y-1 overflow-y-auto">
+                <a v-for="page in visiblePages" :key="page.id" href="#" @click.prevent="currentPage = page.id"
+                   :class="['nav-link flex items-center px-4 py-3 cursor-pointer hover:bg-gray-50 hover:text-gray-900 transition-colors', currentPage === page.id ? 'active' : '']">
+                    <ion-icon :name="page.icon" class="text-xl flex-shrink-0" :class="[isSidebarOpen ? 'mr-3' : 'mx-auto']"></ion-icon>
+                    <span v-if="isSidebarOpen" class="text-sm whitespace-nowrap">{{ page.title }}</span>
+                </a>
+                <a href="#" @click.prevent="handleExportExcel" class="nav-link flex items-center px-4 py-3 cursor-pointer hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                    <ion-icon name="download-outline" class="text-xl flex-shrink-0" :class="[isSidebarOpen ? 'mr-3' : 'mx-auto']"></ion-icon>
+                    <span v-if="isSidebarOpen" class="text-sm whitespace-nowrap">导出记录</span>
+                </a>
+            </nav>
+
+            <div class="p-4 border-t border-gray-100">
+                <div class="flex items-center" :class="[isSidebarOpen ? '' : 'justify-center']">
+                    <div class="w-8 h-8 rounded bg-gray-100 text-gray-600 flex items-center justify-center text-sm font-bold border border-gray-200">{{ currentUser.name.charAt(0) }}</div>
+                    <div v-if="isSidebarOpen" class="ml-3 overflow-hidden">
+                        <p class="text-sm font-medium text-gray-900 truncate">{{ currentUser.name }}</p>
+                        <p class="text-xs text-gray-500 truncate">{{ getRoleName(currentUser.role) }}</p>
                     </div>
-                    <button @click="handleLogout"
-                            :class="['w-full flex items-center justify-center mt-4 py-2 rounded-lg text-red-300 hover:bg-red-700 hover:text-white transition-colors duration-200', isSidebarOpen ? 'px-4' : '']">
-                        <ion-icon name="log-out-outline" class="text-2xl" :class="[isSidebarOpen ? 'mr-3' : '']"></ion-icon>
-                        <span v-if="isSidebarOpen" class="font-medium">退出登录</span>
-                    </button>
                 </div>
+                <button @click="handleLogout" class="mt-3 w-full flex items-center justify-center py-1.5 text-gray-400 hover:text-red-600 transition-colors">
+                    <ion-icon name="log-out-outline" class="text-lg" :class="[isSidebarOpen ? 'mr-2' : '']"></ion-icon>
+                    <span v-if="isSidebarOpen" class="text-xs">退出</span>
+                </button>
             </div>
         </aside>
 
-        <main class="flex-1 flex flex-col overflow-hidden">
-            <header class="h-16 bg-white shadow-md flex items-center justify-between px-6">
-                <h1 class="text-2xl font-semibold text-gray-800">{{ currentPageTitle }}</h1>
-                <div class="text-sm text-gray-600">
-                    欢迎您, <span class="font-medium text-blue-600">{{ currentUser.name }}</span>
+        <main class="flex-1 flex flex-col overflow-hidden bg-gray-50 relative">
+            <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-40">
+                <div class="flex items-center">
+                    <button @click="isSidebarOpen = !isSidebarOpen" class="p-2 rounded hover:bg-gray-100 text-gray-500"><ion-icon name="menu-outline" class="text-xl"></ion-icon></button>
+                    <h2 class="text-lg font-semibold text-gray-900 ml-4">{{ currentPageTitle }}</h2>
                 </div>
+                <div class="text-xs font-mono text-gray-400">{{ new Date().toLocaleDateString() }}</div>
             </header>
 
-            <div class="flex-1 overflow-x-hidden overflow-y-auto p-6 bg-gray-100">
+            <div class="flex-1 overflow-x-hidden overflow-y-auto p-6">
                 <transition name="fade" mode="out-in">
-                    <div :key="currentPage">
+                    <div :key="currentPage" class="max-w-6xl mx-auto pb-12">
 
                         <section v-if="currentPage === 'dashboard'">
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <!-- 我的借阅 -->
-                                <div class="p-6 bg-white rounded-lg shadow-lg flex items-center justify-between">
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-500">我的借阅</p>
-                                        <p class="text-3xl font-bold text-gray-800">{{ myBorrowCount }}</p>
-                                    </div>
-                                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                                        <ion-icon name="book-outline" class="text-4xl text-blue-600"></ion-icon>
-                                    </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                                <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">我的借阅</p>
+                                    <div class="flex justify-between items-end mt-2"><span class="text-3xl font-bold text-gray-900">{{ myBorrowCount }}</span><ion-icon name="book" class="text-2xl text-blue-500 opacity-20"></ion-icon></div>
                                 </div>
-
-
-                                <!-- 我的预约 -->
-                                <div class="p-6 bg-white rounded-lg shadow-lg flex items-center justify-between">
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-500">我的预约</p>
-                                        <p class="text-3xl font-bold text-gray-800">{{ myReservationCount }}</p>
-                                    </div>
-                                    <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
-                                        <ion-icon name="bookmark-outline" class="text-4xl text-yellow-600"></ion-icon>
-                                    </div>
+                                <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">我的预约</p>
+                                    <div class="flex justify-between items-end mt-2"><span class="text-3xl font-bold text-gray-900">{{ myReservationCount }}</span><ion-icon name="bookmark" class="text-2xl text-yellow-500 opacity-20"></ion-icon></div>
                                 </div>
-
-                                <!-- 图书总数 (仅管理员可见) -->
-                                <div v-if="currentUser.role !== 'user'" class="p-6 bg-white rounded-lg shadow-lg flex items-center justify-between">
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-500">图书总数</p>
-                                        <p class="text-3xl font-bold text-gray-800">{{ totalBookCount }}</p>
+                                <template v-if="currentUser.role !== 'user'">
+                                    <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">馆藏总数</p>
+                                        <div class="flex justify-between items-end mt-2"><span class="text-3xl font-bold text-gray-900">{{ totalBookCount }}</span><ion-icon name="library" class="text-2xl text-green-500 opacity-20"></ion-icon></div>
                                     </div>
-                                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                                        <ion-icon name="library-outline" class="text-4xl text-green-600"></ion-icon>
+                                    <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">库存预警</p>
+                                        <div class="flex justify-between items-end mt-2"><span class="text-3xl font-bold" :class="lowStockBooks.length>0?'text-red-600':'text-gray-900'">{{ lowStockBooks.length }}</span><ion-icon name="alert-circle" class="text-2xl text-red-500 opacity-20"></ion-icon></div>
                                     </div>
-                                </div>
-
-                                <!-- 用户总数 (仅管理员可见) -->
-                                <div v-if="currentUser.role !== 'user'" class="p-6 bg-white rounded-lg shadow-lg flex items-center justify-between">
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-500">用户总数</p>
-                                        <p class="text-3xl font-bold text-gray-800">{{ totalUserCount }}</p>
-                                    </div>
-                                    <div v-if="currentUser.role !== 'user'" class="p-6 bg-white rounded-lg shadow-lg flex items-center justify-between">
-                                        <div>
-                                            <p class="text-sm font-medium text-gray-500">库存预警</p>
-                                            <p class="text-3xl font-bold" :class="[lowStockBooks.length > 0 ? 'text-red-600' : 'text-gray-800']">
-                                                {{ lowStockBooks.length }}
-                                            </p>
-                                        </div>
-                                        <div class="w-16 h-16 rounded-full flex items-center justify-center" :class="[lowStockBooks.length > 0 ? 'bg-red-100' : 'bg-gray-100']">
-                                            <ion-icon name="alert-circle-outline" class="text-4xl" :class="[lowStockBooks.length > 0 ? 'text-red-600' : 'text-gray-600']"></ion-icon>
-                                        </div>
-                                    </div>
-                                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
-                                        <ion-icon name="people-outline" class="text-4xl text-purple-600"></ion-icon>
-                                    </div>
-                                </div>
+                                </template>
                             </div>
 
-                            <!-- 欢迎信息 -->
-                            <div class="mt-8 p-6 bg-white rounded-lg shadow-lg">
-                                <h3 class="text-xl font-semibold mb-4">欢迎使用图书管理系统</h3>
-                                <p class="text-gray-600">
-                                    您可以在左侧的导航栏中选择需要的功能。作为{{ getRoleName(currentUser.role) }}，
-                                    <span v-if="currentUser.role === 'user'">您可以浏览图书、管理您的借阅和预约。</span>
-                                    <span v-if="currentUser.role === 'admin'">您可以管理图书信息、处理借还操作、查看借阅记录和数据分析报告。</span>
-                                    <span v-if="currentUser.role === 'superadmin'">您拥有所有权限,包括管理其他用户账号。</span>
-                                </p>
-                            </div>
-                            <div v-if="currentUser.role !== 'user' && lowStockBooks.length > 0" class="mt-8 p-6 bg-white rounded-lg shadow-lg">
-                                <h3 class="text-xl font-semibold mb-4 text-red-600">低库存图书</h3>
-                                <ul class="divide-y divide-gray-200">
-                                    <li v-for="book in lowStockBooks" :key="book.id" class="py-3 flex justify-between items-center">
-                                        <div>
-                                            <p class="font-medium">{{ book.title }} <span class="text-sm text-gray-500">(ISBN: {{ book.isbn }})</span></p>
-                                            <p class="text-sm text-gray-500">作者: {{ book.author }}</p>
-                                        </div>
-                                        <span class="px-3 py-1 text-sm font-semibold rounded-full bg-red-100 text-red-800">
-                                        仅剩 {{ book.available }} 本
-                                    </span>
-                                    </li>
-                                </ul>
-                            </div>
-
-                        </section>
-
-                        <section v-if="currentPage === 'profile'">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                                <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <h3 class="text-xl font-semibold mb-4">更新个人资料</h3>
-                                    <form @submit.prevent="handleUpdateProfile">
-                                        <div class="mb-4">
-                                            <label for="profile-name" class="block text-sm font-medium text-gray-700 mb-2">姓名</label>
-                                            <input type="text" id="profile-name" v-model="profileForm.name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                                        </div>
-                                        <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition duration-300">
-                                            保存更改
-                                        </button>
-                                    </form>
-                                </div>
-
-                                <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <h3 class="text-xl font-semibold mb-4">修改密码</h3>
-                                    <form @submit.prevent="handleChangePassword">
-                                        <div class="space-y-4">
-                                            <div>
-                                                <label for="old-password" class="block text-sm font-medium text-gray-700 mb-2">旧密码</label>
-                                                <input type="password" id="old-password" v-model="passwordForm.oldPassword" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="输入您当前的密码" required>
-                                            </div>
-                                            <div>
-                                                <label for="new-password" class="block text-sm font-medium text-gray-700 mb-2">新密码</label>
-                                                <input type="password" id="new-password" v-model="passwordForm.newPassword" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="输入您的新密码" required>
-                                            </div>
-                                            <div>
-                                                <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-2">确认新密码</label>
-                                                <input type="password" id="confirm-password" v-model="passwordForm.confirmPassword" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="再次输入新密码" required>
-                                            </div>
-                                        </div>
-                                        <button type="submit" class="w-full mt-6 bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition duration-300">
-                                            确认修改密码
-                                        </button>
-                                    </form>
-                                </div>
-
-                            </div>
-                        </section>
-
-                        <section v-if="currentPage === 'manageBooks'">
-                            <div class="mb-6 p-4 bg-white rounded-lg shadow flex justify-between items-center">
-                                <div class="flex space-x-4">
-                                    <input type="text" v-model="bookSearchQuery" placeholder="按书名、作者或ISBN搜索..." class="w-72 px-4 py-2 border rounded-lg">
-                                    <button @click="clearBookSearch" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
-                                        清空
-                                    </button>
-                                </div>
-                                <button v-if="currentUser.role !== 'user'" @click="openBookModal(null)" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center">
-                                    <ion-icon name="add-outline" class="mr-1"></ion-icon> 图书入库
-
-                                </button>
-                                <button v-if="currentUser.role !== 'user'" @click="openImportModal" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center">
-                                    <ion-icon name="cloud-upload-outline" class="mr-1"></ion-icon> 批量导入
-                                </button>
-                            </div>
-                            <div class="bg-white rounded-lg shadow overflow-x-auto">
-                                <table class="w-full table-auto">
-                                    <thead class="bg-gray-50 border-b">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">封面</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">书名</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">作者</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ISBN</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-200">
-                                    <tr v-for="book in filteredBooks" :key="book.id" class="hover:bg-gray-50">
-                                        <td class="px-6 py-4">
-                                            <img :src="book.cover" alt="封面" class="w-12 h-16 object-cover rounded" @error="({ target }) => target.src = 'https://placehold.co/150x200/6b7280/white?text=%E6%97%A0%E5%9B%BE%E7%89%87'">
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ book.title }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ book.author }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ book.isbn }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span v-if="book.available > 0" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                            可借阅 ({{ book.available }})
-                                            </span>
-                                            <span v-else class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                            已借完
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-
-                                            <button
-                                                    v-if="book.available > 0 && !isBookBorrowedByUser(book) && !isBookReservedByUser(book)"
-                                                    @click="handleBorrow(book)"
-                                                    class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                                            >
-                                                借阅
-                                            </button>
-
-                                            <button
-                                                    v-else-if="book.available === 0 && !isBookBorrowedByUser(book) && !isBookReservedByUser(book)"
-                                                    @click="handleReserve(book)"
-                                                    class="px-3 py-1 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
-                                            >
-                                                预约
-                                            </button>
-
-                                            <span v-else-if="isBookBorrowedByUser(book)" class="px-2 py-1 text-xs font-semibold rounded-lg bg-blue-100 text-blue-800">
-                                                已借阅
-                                            </span>
-                                            <span v-else-if="isBookReservedByUser(book)" class="px-2 py-1 text-xs font-semibold rounded-lg bg-yellow-100 text-yellow-800">
-                                                已预约
-                                            </span>
-
-                                            <template v-if="currentUser.role !== 'user'">
-                                                <button @click="openBookModal(book)" class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600">编辑</button>
-                                                <button @click="handleDeleteBook(book)" class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600">删除</button>
-                                            </template>
-
-                                        </td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-
-                        <section v-if="currentPage === 'manageBorrow'">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <h3 class="text-xl font-semibold mb-4">图书归还处理</h3>
-                                    <div class="space-y-4">
-                                        <input type="text" v-model="returnBookId" placeholder="输入要归还的图书ID或ISBN..." class="w-full px-4 py-2 border rounded-lg">
-                                        <input type="text" v-model="returnUserId" placeholder="输入归还用户的ID (可选)..." class="w-full px-4 py-2 border rounded-lg">
-                                        <button @click="handleReturn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                                            确认归还
-                                        </button>
+                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div class="lg:col-span-2 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                    <h3 class="text-base font-bold text-gray-900 mb-4">系统公告</h3>
+                                    <div class="text-sm text-gray-600 leading-relaxed p-4 bg-gray-50 rounded border border-gray-100">
+                                        欢迎回来，<strong>{{ currentUser.name }}</strong>。<br>
+                                        您当前身份为 <span class="px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded text-xs">{{ getRoleName(currentUser.role) }}</span>。<br>
+                                        系统各项服务运行正常。如需帮助，请联系管理员。
                                     </div>
                                 </div>
-                                <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <h3 class="text-xl font-semibold mb-4">待处理预约</h3>
-                                    <div v-if="pendingReservations.length === 0" class="text-gray-500">
-                                        暂无待处理的预约。
-                                    </div>
-                                    <ul v-else class="divide-y divide-gray-200">
-                                        <li v-for="res in pendingReservations" :key="res.id" class="py-3 flex justify-between items-center">
-                                            <div>
-                                                <p class="font-medium">{{ getBookById(res.bookId)?.title }}</p>
-                                                <p class="text-sm text-gray-500">预约人: {{ getUserById(res.userId)?.name }} | {{ res.date }}</p>
-                                            </div>
-                                            <button @click="handleProcessReservation(res)" class="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600">
-                                                处理
-                                            </button>
+                                <div v-if="currentUser.role !== 'user' && lowStockBooks.length > 0" class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm border-t-4 border-t-red-500">
+                                    <h3 class="text-base font-bold text-gray-900 mb-4 flex items-center">补货提醒 <span class="ml-2 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">{{ lowStockBooks.length }}</span></h3>
+                                    <ul class="space-y-2">
+                                        <li v-for="book in lowStockBooks.slice(0,5)" :key="book.id" class="flex justify-between text-sm py-1 border-b border-gray-50">
+                                            <span class="text-gray-600 truncate w-2/3">{{ book.title }}</span>
+                                            <span class="font-mono text-red-600 font-bold">{{ book.available }} 本</span>
                                         </li>
                                     </ul>
                                 </div>
-                            </div>
-                        </section>
-
-                        <section v-if="currentPage === 'records'">
-                            <div class="bg-white rounded-lg shadow overflow-x-auto">
-                                <table class="w-full table-auto">
-                                    <thead class="bg-gray-50 border-b">
-                                    <tr>
-                                        <th v-if="currentUser.role !== 'user'" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">书名</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">借阅日期</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">应还日期</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-200">
-                                    <tr v-if="filteredRecords.length === 0">
-                                        <td :colspan="currentUser.role !== 'user' ? 6 : 5" class="px-6 py-4 text-center text-gray-500">暂无记录</td>
-                                    </tr>
-                                    <tr v-for="record in filteredRecords" :key="record.id" class="hover:bg-gray-50">
-                                        <td v-if="currentUser.role !== 'user'" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ record.userName }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ record.bookTitle }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ record.borrowDate }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ record.dueDate }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span v-if="record.status === 'borrowed'" :class="['px-2 inline-flex text-xs leading-5 font-semibold rounded-full', isOverdue(record.dueDate) ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800']">
-                                            {{ isOverdue(record.dueDate) ? '已逾期' : '借阅中' }}
-                                            </span>
-                                            <span v-else-if="record.status === 'returned'" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                            已归还
-                                            </span>
-                                            <span v-else-if="record.status === 'reserved'" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                            预约中
-                                            </span>
-                                            <span v-else-if="record.status === 'awaiting_pickup'" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
-                                            等待取书
-                                            </span>
-                                            <span v-else-if="record.status === 'expired'" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                            预约过期
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <button v-if="record.status === 'borrowed' && currentUser.role === 'user'" @click="handleRenew(record)" class="px-3 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600">
-                                                续借
-                                            </button>
-                                            <span v-else>--</span>
-                                        </td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-
-                        <section v-if="currentPage === 'manageUsers'">
-                            <div class="mb-6 p-4 bg-white rounded-lg shadow flex justify-between items-center">
-                                <input type="text" v-model="userSearchQuery" placeholder="按用户名或ID搜索..." class="w-72 px-4 py-2 border rounded-lg">
-                                <button @click="openUserModal(null)" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center">
-                                    <ion-icon name="person-add-outline" class="mr-1"></ion-icon> 添加用户
-                                </button>
-                            </div>
-                            <div class="bg-white rounded-lg shadow overflow-x-auto">
-                                <table class="w-full table-auto">
-                                    <thead class="bg-gray-50 border-b">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户ID</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">学号/用户名</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">姓名</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">角色</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-200">
-                                    <tr v-for="user in filteredUsers" :key="user.id" class="hover:bg-gray-50">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ user.id }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ user.username }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ user.name }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ getRoleName(user.role) }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                            <button @click="openUserModal(user)" class="px-3 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600">编辑</button>
-                                            <button @click="handleDeleteUser(user)" class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600" :disabled="user.id === currentUser.id">
-                                                删除
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </section>
-
-                        <section v-if="currentPage === 'auditLogs'">
-                            <div class="bg-white rounded-lg shadow overflow-x-auto">
-                                <table class="w-full table-auto">
-                                    <thead class="bg-gray-50 border-b">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">时间</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">详情</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP 地址</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-200">
-                                    <tr v-if="auditLogs.length === 0">
-                                        <td colspan="5" class="px-6 py-4 text-center text-gray-500">暂无日志记录</td>
-                                    </tr>
-                                    <tr v-for="log in auditLogs" :key="log.id" class="hover:bg-gray-50">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ new Date(log.timestamp).toLocaleString() }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ log.username }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                                {{ log.action }}
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 text-sm text-gray-500">{{ log.details }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ log.ipAddress }}</td>
-                                    </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div class="mt-4 flex justify-between items-center">
-                                <button @click="fetchAuditLogs(auditLogPage - 1)" :disabled="auditLogPage <= 0"
-                                        class="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50">
-                                    上一页
-                                </button>
-                                <span class="text-sm text-gray-700">
-                                    第 {{ auditLogPage + 1 }} 页 / 共 {{ auditLogTotalPages }} 页
-                                </span>
-                                <button @click="fetchAuditLogs(auditLogPage + 1)" :disabled="auditLogPage >= auditLogTotalPages - 1"
-                                        class="px-4 py-2 bg-gray-200 rounded-lg disabled:opacity-50">
-                                    下一页
-                                </button>
                             </div>
                         </section>
 
                         <section v-if="currentPage === 'analysis'">
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                                <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <div class="flex justify-between items-center mb-4">
-                                        <h3 class="text-xl font-semibold">热门图书 Top 5 (真实数据)</h3>
-                                        <button
-                                                @click="handleExportAnalysis('popular-books', 'popular_books.xlsx')"
-                                                class="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full transition">
-                                            <ion-icon name="download-outline" class="text-xl"></ion-icon>
-                                        </button>
-                                    </div>
-
+                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-900">热门图书 Top 5</h3><button @click="handleExportAnalysis('popular-books','pop.xlsx')" class="text-gray-400 hover:text-blue-600"><ion-icon name="download-outline"></ion-icon></button></div>
                                     <ul class="space-y-3">
-                                        <li v-if="popularBooks.length === 0" class="text-gray-500">暂无数据</li>
-                                        <li v-for="(book, index) in popularBooks" :key="book.title" class="flex items-center justify-between">
-                                            <span class="font-medium">{{ index + 1 }}. {{ book.title }}</span>
-                                            <span class="text-gray-600">{{ book.borrowCount }} 次借阅</span>
+                                        <li v-if="popularBooks.length===0" class="text-gray-400 text-sm text-center py-4">暂无数据</li>
+                                        <li v-for="(book, idx) in popularBooks" :key="idx" class="text-sm">
+                                            <div class="flex justify-between mb-1"><span class="text-gray-700 font-medium truncate w-3/4">{{ idx+1 }}. {{ book.title }}</span><span class="text-gray-500">{{ book.borrowCount }} 次</span></div>
+                                            <div class="w-full bg-gray-100 rounded-full h-1.5"><div class="bg-blue-600 h-1.5 rounded-full" :style="{width: (book.borrowCount / (popularBooks[0]?.borrowCount || 1) * 100) + '%'}"></div></div>
                                         </li>
                                     </ul>
                                 </div>
 
-                                <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <div class="flex justify-between items-center mb-4">
-                                        <h3 class="text-xl font-semibold">借阅高峰时段</h3>
-                                        <button
-                                                @click="handleExportAnalysis('peak-times', 'peak_times.xlsx')"
-                                                class="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full transition">
-                                            <ion-icon name="download-outline" class="text-xl"></ion-icon>
-                                        </button>
+                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-900">图书分类分布</h3><button @click="handleExportAnalysis('categories','cats.xlsx')" class="text-gray-400 hover:text-blue-600"><ion-icon name="download-outline"></ion-icon></button></div>
+                                    <div class="flex flex-col items-center">
+                                        <div class="w-40 h-40 rounded-full border-4 border-white shadow-inner mb-4" :style="{ background: pieChartStyle }"></div>
+                                        <div class="flex flex-wrap justify-center gap-2 text-xs text-gray-600">
+                                            <div v-if="categoryStats.length===0" class="text-gray-400">暂无数据</div>
+                                            <span v-for="(cat, i) in categoryStats" :key="i" class="flex items-center"><span class="w-2 h-2 rounded-full mr-1" :style="{background: chartColors[i%chartColors.length]}"></span> {{ cat.category }} ({{ cat.count }})</span>
+                                        </div>
                                     </div>
-                                    <div class="relative h-64">
-                                        <div v-if="peakTimeStats.length === 0" class="flex items-center justify-center h-full text-gray-500">暂无数据 (9:00-19:00)</div>
-                                        <div class="h-full flex items-end justify-around space-x-2">
-                                            <div class="text-center" v-for="slot in peakTimeStats" :key="slot.hourSlot">
-                                                <div class="bg-blue-500 rounded-t-lg relative" :style="{ height: (slot.count * 10) + 'px' }">
-                                                    <span class="text-xs text-white absolute -top-5 left-1/2 -translate-x-1/2">{{ slot.count }}</span>
-                                                </div>
-                                                <span class="text-xs text-gray-500">{{ slot.hourSlot }}</span>
+                                </div>
+
+                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm lg:col-span-2">
+                                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-900">借阅高峰时段</h3><button @click="handleExportAnalysis('peak-times','peak.xlsx')" class="text-gray-400 hover:text-blue-600"><ion-icon name="download-outline"></ion-icon></button></div>
+                                    <div class="h-48 flex items-end justify-between space-x-1 pt-6">
+                                        <div v-if="peakTimeStats.length===0" class="w-full text-center text-gray-400 text-sm">暂无数据</div>
+                                        <div v-for="slot in peakTimeStats" :key="slot.hourSlot" class="flex-1 flex flex-col items-center group">
+                                            <div class="w-full bg-blue-100 rounded-t hover:bg-blue-500 transition-colors relative" :style="{ height: (slot.count * 10 + 5) + 'px', maxHeight: '100%' }">
+                                                <span class="absolute -top-5 left-1/2 -translate-x-1/2 text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">{{ slot.count }}</span>
                                             </div>
+                                            <span class="text-[10px] text-gray-400 mt-1">{{ slot.hourSlot }}</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <div class="flex justify-between items-center mb-4">
-                                        <h3 class="text-xl font-semibold">活跃读者 Top 5</h3>
-                                        <button
-                                                @click="handleExportAnalysis('active-users', 'active_users.xlsx')"
-                                                class="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full transition">
-                                            <ion-icon name="download-outline" class="text-xl"></ion-icon>
-                                        </button>
-                                    </div>
-                                    <ul class="space-y-3">
-                                        <li v-if="activeUsers.length === 0" class="text-gray-500">暂无数据</li>
-                                        <li v-for="(user, index) in activeUsers" :key="user.name" class="flex items-center justify-between">
-                                            <span class="font-medium">{{ index + 1 }}. {{ user.name }}</span>
-                                            <span class="text-gray-600">{{ user.borrowCount }} 次借阅</span>
-                                        </li>
-                                    </ul>
+                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                    <div class="flex justify-between items-center mb-3"><h3 class="font-bold text-gray-900">滞销图书 (Top 10)</h3><button @click="handleExportAnalysis('stagnant-books','stagnant.xlsx')" class="text-gray-400 hover:text-blue-600"><ion-icon name="download-outline"></ion-icon></button></div>
+                                    <ul class="divide-y divide-gray-100 text-sm"><li v-for="(b,i) in stagnantBooks" :key="i" class="py-2 flex justify-between"><span class="text-gray-600 truncate w-2/3">{{ i+1 }}. {{ b.title }}</span><span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">{{ b.category }}</span></li><li v-if="stagnantBooks.length===0" class="py-4 text-center text-gray-400">无数据</li></ul>
                                 </div>
-
-                                <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <div class="flex justify-between items-center mb-4">
-                                        <h3 class="text-xl font-semibold">图书分类占比</h3>
-                                        <button
-                                                @click="handleExportAnalysis('categories', 'categories.xlsx')"
-                                                class="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full transition">
-                                            <ion-icon name="download-outline" class="text-xl"></ion-icon>
-                                        </button>
-                                    </div>
-                                    <div class="w-48 h-48 rounded-full flex items-center justify-center mx-auto"
-                                         :style="{ backgroundImage: pieChartStyle }">
-                                    </div>
-                                    <div v-if="categoryStats.length === 0" class="mt-4 text-center text-gray-500">暂无分类数据</div>
-                                    <div class="mt-4 text-sm text-gray-600 text-center flex flex-wrap justify-center gap-x-3">
-                                        <div v-for="(cat, index) in categoryStats" :key="cat.category">
-                                            <span class="inline-block w-3 h-3 rounded-full mr-1"
-                                                  :style="{ backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#6b7280'][index % 6] }"></span>
-                                            {{ cat.category }} ({{ (cat.count / (categoryStats.reduce((sum, item) => sum + item.count, 1)) * 100).toFixed(1) }}%)
-                                        </div>
-                                    </div>
+                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                                    <div class="flex justify-between items-center mb-3"><h3 class="font-bold text-gray-900">活跃读者 Top 5</h3><button @click="handleExportAnalysis('active-users','active.xlsx')" class="text-gray-400 hover:text-blue-600"><ion-icon name="download-outline"></ion-icon></button></div>
+                                    <ul class="divide-y divide-gray-100 text-sm"><li v-for="(u,i) in activeUsers" :key="i" class="py-2 flex justify-between"><span class="text-gray-700 font-medium">{{ i+1 }}. {{ u.name }}</span><span class="text-blue-600 font-bold">{{ u.borrowCount }} 次</span></li><li v-if="activeUsers.length===0" class="py-4 text-center text-gray-400">无数据</li></ul>
                                 </div>
-
-                                <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <div class="flex justify-between items-center mb-4">
-                                        <h3 class="text-xl font-semibold">逾期读者</h3>
-                                        <button
-                                                @click="handleExportAnalysis('overdue-users', 'overdue_users.xlsx')"
-                                                class="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full transition">
-                                            <ion-icon name="download-outline" class="text-xl"></ion-icon>
-                                        </button>
-                                    </div>
-                                    <ul class="space-y-3">
-                                        <li v-if="overdueUsers.length === 0" class="text-gray-500">暂无逾期读者</li>
-                                        <li v-for="(user, index) in overdueUsers" :key="user.name" class="flex items-center justify-between">
-                                            <span class="font-medium text-red-600">{{ index + 1 }}. {{ user.name }}</span>
-                                            <span class="text-gray-600">{{ user.overdueCount }} 本逾期</span>
-                                        </li>
-                                    </ul>
-                                </div>
-
-                                <div class="p-6 bg-white rounded-lg shadow-lg">
-                                    <div class="flex justify-between items-center mb-4">
-                                        <h3 class="text-xl font-semibold">滞销图书 Top 10 (6个月内未借阅)</h3>
-                                        <button
-                                                @click="handleExportAnalysis('stagnant-books', 'stagnant_books.xlsx')"
-                                                class="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full transition">
-                                            <ion-icon name="download-outline" class="text-xl"></ion-icon>
-                                        </button>
-                                    </div>
-                                    <ul class="space-y-3">
-                                        <li v-if="stagnantBooks.length === 0" class="text-gray-500">暂无滞销图书</li>
-                                        <li v-for="(book, index) in stagnantBooks" :key="book.title" class="flex items-center justify-between">
-                                            <span class="font-medium">{{ index + 1 }}. {{ book.title }}</span>
-                                            <span class="text-gray-600 text-xs">{{ book.category }}</span>
-                                        </li>
-                                    </ul>
-                                </div>
-
                             </div>
+                        </section>
+
+                        <section v-if="currentPage === 'manageBooks'">
+                            <div class="flex flex-col md:flex-row gap-4 mb-6 justify-between">
+                                <div class="relative flex-1 max-w-md">
+                                    <ion-icon name="search" class="absolute left-3 top-3 text-gray-400"></ion-icon>
+                                    <input type="text" v-model="bookSearchQuery" class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-gray-900 outline-none" placeholder="搜索图书...">
+                                </div>
+                                <div v-if="currentUser.role!=='user'" class="flex gap-2">
+                                    <button @click="openBookModal(null)" class="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-black flex items-center"><ion-icon name="add" class="mr-1"></ion-icon>入库</button>
+                                    <button @click="modalType='importBooks'; isModalOpen=true" class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center"><ion-icon name="cloud-upload" class="mr-1"></ion-icon>导入</button>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                <table class="w-full text-left text-sm">
+                                    <thead class="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase text-xs"><tr><th class="px-6 py-3">图书信息</th><th class="px-6 py-3">作者/ISBN</th><th class="px-6 py-3">库存</th><th class="px-6 py-3 text-right">操作</th></tr></thead>
+                                    <tbody class="divide-y divide-gray-100">
+                                    <tr v-for="book in filteredBooks" :key="book.id" class="hover:bg-gray-50">
+                                        <td class="px-6 py-3 flex items-center"><div class="w-8 h-12 bg-gray-200 rounded mr-3 overflow-hidden"><img :src="book.cover" class="w-full h-full object-cover" @error="$event.target.style.display='none'"></div><span class="font-medium text-gray-900">{{ book.title }}</span></td>
+                                        <td class="px-6 py-3"><div class="text-gray-900">{{ book.author }}</div><div class="text-gray-500 text-xs">{{ book.isbn }}</div></td>
+                                        <td class="px-6 py-3"><span :class="['px-2 py-0.5 rounded text-xs font-medium', book.available>0 ? 'bg-green-100 text-green-700':'bg-red-100 text-red-700']">{{ book.available>0?`剩 ${book.available}`:'无货' }}</span></td>
+                                        <td class="px-6 py-3 text-right space-x-2">
+                                            <button v-if="book.available>0 && !isBookBorrowedByUser(book)" @click="handleBorrow(book)" class="text-blue-600 hover:underline font-medium">借阅</button>
+                                            <button v-if="book.available===0 && !isBookBorrowedByUser(book) && !isBookReservedByUser(book)" @click="handleReserve(book)" class="text-orange-600 hover:underline font-medium">预约</button>
+                                            <span v-if="isBookBorrowedByUser(book)" class="text-gray-400 text-xs">已借阅</span>
+                                            <template v-if="currentUser.role!=='user'"><button @click="openBookModal(book)" class="text-gray-400 hover:text-gray-900"><ion-icon name="create"></ion-icon></button><button @click="handleDeleteBook(book)" class="text-gray-400 hover:text-red-600"><ion-icon name="trash"></ion-icon></button></template>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section v-if="currentPage === 'records'">
+                            <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                <div class="px-6 py-4 border-b border-gray-200 font-bold text-gray-900">借阅记录</div>
+                                <table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-500 uppercase text-xs"><tr><th class="px-6 py-3">图书</th><th class="px-6 py-3">借出</th><th class="px-6 py-3">应还</th><th class="px-6 py-3">状态</th><th class="px-6 py-3 text-right">操作</th></tr></thead><tbody class="divide-y divide-gray-100">
+                                <tr v-for="r in filteredRecords" :key="r.id"><td class="px-6 py-3 font-medium text-gray-900">{{ r.bookTitle }}</td><td class="px-6 py-3 text-gray-500">{{ r.borrowDate }}</td><td class="px-6 py-3 text-gray-500">{{ r.dueDate }}</td><td class="px-6 py-3"><span :class="['px-2 py-0.5 rounded text-xs', isOverdue(r.dueDate) && r.status==='borrowed' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700']">{{ r.status }}</span></td><td class="px-6 py-3 text-right"><button v-if="r.status==='borrowed' && currentUser.role==='user'" @click="handleRenew(r)" class="text-blue-600 hover:underline">续借</button></td></tr>
+                                </tbody></table>
+                            </div>
+                        </section>
+
+                        <section v-if="currentPage === 'auditLogs'">
+                            <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                <div class="px-6 py-4 border-b border-gray-200 font-bold text-gray-900">审计日志</div>
+                                <table class="w-full text-left text-sm"><thead class="bg-gray-50 text-gray-500"><tr><th class="px-6 py-3">时间</th><th class="px-6 py-3">用户</th><th class="px-6 py-3">操作</th><th class="px-6 py-3">详情</th></tr></thead><tbody class="divide-y divide-gray-100"><tr v-for="l in auditLogs" :key="l.id"><td class="px-6 py-3 text-gray-500">{{ new Date(l.timestamp).toLocaleString() }}</td><td class="px-6 py-3 font-medium">{{ l.username }}</td><td class="px-6 py-3"><span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs">{{ l.action }}</span></td><td class="px-6 py-3 text-gray-500">{{ l.details }}</td></tr></tbody></table>
+                                <div class="p-3 border-t border-gray-200 flex justify-between"><button @click="fetchAuditLogs(auditLogPage-1)" :disabled="auditLogPage<=0" class="text-sm text-blue-600 disabled:text-gray-400">上一页</button><span class="text-xs text-gray-500">{{ auditLogPage+1 }} / {{ auditLogTotalPages }}</span><button @click="fetchAuditLogs(auditLogPage+1)" :disabled="auditLogPage>=auditLogTotalPages-1" class="text-sm text-blue-600 disabled:text-gray-400">下一页</button></div>
+                            </div>
+                        </section>
+
+                        <section v-if="currentPage === 'manageBorrow'">
+                            <div class="grid md:grid-cols-2 gap-6">
+                                <div class="bg-white p-6 rounded-lg border border-gray-200">
+                                    <h3 class="font-bold mb-4">图书归还</h3>
+                                    <div class="space-y-3"><input v-model="returnBookId" placeholder="ISBN / ID" class="w-full px-3 py-2 border rounded"><input v-model="returnUserId" placeholder="User ID (选填)" class="w-full px-3 py-2 border rounded"><button @click="handleReturn" class="w-full py-2 bg-gray-900 text-white rounded">归还</button></div>
+                                </div>
+                                <div class="bg-white p-6 rounded-lg border border-gray-200">
+                                    <h3 class="font-bold mb-4">预约处理</h3>
+                                    <ul class="space-y-2"><li v-for="res in pendingReservations" :key="res.id" class="flex justify-between items-center p-2 bg-gray-50 rounded"><div class="text-sm"><div class="font-medium">{{ getBookById(res.bookId)?.title }}</div><div class="text-xs text-gray-500">{{ getUserById(res.userId)?.name }}</div></div><button @click="handleProcessReservation(res)" class="px-2 py-1 bg-green-600 text-white text-xs rounded">批准</button></li><li v-if="pendingReservations.length===0" class="text-gray-400 text-center text-sm">无待办</li></ul>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section v-if="currentPage === 'profile'">
+                            <div class="max-w-2xl mx-auto bg-white p-8 rounded-lg border border-gray-200">
+                                <h3 class="font-bold text-lg mb-6 border-b pb-2">账户设置</h3>
+                                <form @submit.prevent="handleUpdateProfile" class="mb-8"><label class="block text-sm font-medium mb-2">显示名称</label><div class="flex gap-2"><input v-model="profileForm.name" class="flex-1 px-3 py-2 border rounded"><button class="px-4 py-2 bg-gray-900 text-white rounded">保存</button></div></form>
+                                <div class="pt-6 border-t"><h4 class="font-medium mb-4">安全</h4><button @click="modalType='password'; isModalOpen=true" class="text-blue-600 text-sm hover:underline">修改登录密码</button></div>
+                            </div>
+                        </section>
+
+                        <section v-if="currentPage === 'manageUsers'">
+                            <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4 flex justify-between"><input v-model="userSearchQuery" placeholder="搜索用户..." class="px-3 py-2 border rounded w-64"><button @click="openUserModal(null)" class="px-4 py-2 bg-green-600 text-white rounded text-sm">添加用户</button></div>
+                            <div class="bg-white rounded-lg border border-gray-200 overflow-hidden"><table class="w-full text-left text-sm"><thead class="bg-gray-50"><tr><th class="px-6 py-3">账号</th><th class="px-6 py-3">姓名</th><th class="px-6 py-3">角色</th><th class="px-6 py-3 text-right">操作</th></tr></thead><tbody class="divide-y divide-gray-100"><tr v-for="u in filteredUsers" :key="u.id"><td class="px-6 py-3">{{ u.username }}</td><td class="px-6 py-3">{{ u.name }}</td><td class="px-6 py-3"><span class="bg-gray-100 px-2 py-0.5 rounded text-xs">{{ getRoleName(u.role) }}</span></td><td class="px-6 py-3 text-right space-x-2"><button @click="openUserModal(u)" class="text-blue-600">编辑</button><button @click="handleDeleteUser(u)" class="text-red-600">删除</button></td></tr></tbody></table></div>
                         </section>
 
                     </div>
@@ -746,1025 +368,294 @@
     </template>
 
     <transition name="fade">
-        <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60" @click.self="closeModal">
+        <div v-if="isModalOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm" @click.self="closeModal">
+            <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 m-4 max-h-[90vh] overflow-y-auto relative">
+                <button @click="closeModal" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl"><ion-icon name="close"></ion-icon></button>
 
-            <div v-if="modalType === 'book'" class="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-                <h3 class="text-xl font-semibold mb-4">{{ currentBook.id ? '编辑图书' : '图书入库' }}</h3>
-                <form @submit.prevent="handleSaveBook">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700">书名</label>
-                            <input type="text" v-model="currentBook.title" class="mt-1 w-full px-3 py-2 border rounded-lg" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">作者</label>
-                            <input type="text" v-model="currentBook.author" class="mt-1 w-full px-3 py-2 border rounded-lg" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">ISBN</label>
-                            <input type="text" v-model="currentBook.isbn" class="mt-1 w-full px-3 py-2 border rounded-lg" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">出版社</label>
-                            <input type="text" v-model="currentBook.publisher" class="mt-1 w-full px-3 py-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">出版日期</label>
-                            <input type="date" v-model="currentBook.publicationDate" class="mt-1 w-full px-3 py-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">价格</label>
-                            <input type="number" v-model.number="currentBook.price" min="0" step="0.01" class="mt-1 w-full px-3 py-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">分类</label>
-                            <input type="text" v-model="currentBook.category" class="mt-1 w-full px-3 py-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">总库存</label>
-                            <input type="number" v-model.number="currentBook.stock" min="0"
-                                   class="mt-1 w-full px-3 py-2 border rounded-lg"
-                                   required
-                                   :disabled="currentBook.id"
-                                   :class="{ 'bg-gray-100': currentBook.id }">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">可借阅数</label>
-                            <input type="number" v-model.number="currentBook.available" min="0" :max="currentBook.stock"
-                                   class="mt-1 w-full px-3 py-2 border rounded-lg"
-                                   required
-                                   :disabled="currentBook.id"
-                                   :class="{ 'bg-gray-100': currentBook.id }">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700">封面图片URL</label>
-                            <input type="text" v-model="currentBook.cover" class="mt-1 w-full px-3 py-2 border rounded-lg">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700">简介</label>
-                            <textarea v-model="currentBook.introduction" rows="3" class="mt-1 w-full px-3 py-2 border rounded-lg"></textarea>
-                        </div>
-                    </div>
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <button type="button" @click="closeModal" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">
-                            取消
-                        </button>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            保存
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <div v-if="modalType === 'user'" class="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
-                <h3 class="text-xl font-semibold mb-4">{{ currentUserForm.id ? '编辑用户' : '添加用户' }}</h3>
-                <form @submit.prevent="handleSaveUser">
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">学号 / 用户名</label>
-                            <input type="text" v-model="currentUserForm.username" class="mt-1 w-full px-3 py-2 border rounded-lg" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">姓名</label>
-                            <input type="text" v-model="currentUserForm.name" class="mt-1 w-full px-3 py-2 border rounded-lg" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">邮箱</label>
-                            <input type="email" v-model="currentUserForm.email" class="mt-1 w-full px-3 py-2 border rounded-lg" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">密码</label>
-                            <input type="password" v-model="currentUserForm.password" class="mt-1 w-full px-3 py-2 border rounded-lg" :placeholder="currentUserForm.id ? '留空则不修改' : '必填'">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">角色</label>
-                            <select v-model="currentUserForm.role" class="mt-1 w-full px-3 py-2 border rounded-lg bg-white">
-                                <option value="user">普通用户</option>
-                                <option value="admin">管理员</option>
-                                <option value="superadmin">超级管理员</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <button type="button" @click="closeModal" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">
-                            取消
-                        </button>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            保存
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <div v-if="modalType === 'importBooks'" class="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6">
-                <h3 class="text-xl font-semibold mb-4">批量导入图书</h3>
-
-                <div v-if="importResults.success > 0 || importResults.failed > 0">
-                    <h4 class="font-semibold text-lg">导入结果:</h4>
-                    <p class="text-green-600">成功: {{ importResults.success }} 条</p>
-                    <p class="text-red-600">失败: {{ importResults.failed }} 条</p>
-                    <div v-if="importResults.errors.length > 0" class="mt-2 p-2 bg-gray-100 rounded max-h-32 overflow-y-auto">
-                        <p class="font-medium text-sm">错误详情:</p>
-                        <ul class="list-disc list-inside text-sm text-red-700">
-                            <li v-for="err in importResults.errors" :key="err">{{ err }}</li>
-                        </ul>
-                    </div>
+                <div v-if="modalType === 'book'">
+                    <h3 class="text-xl font-bold mb-4">{{ currentBook.id ? '编辑图书' : '入库' }}</h3>
+                    <form @submit.prevent="handleSaveBook" class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3"><div class="col-span-2"><label class="text-xs font-bold text-gray-500">书名</label><input v-model="currentBook.title" class="w-full px-3 py-2 border rounded" required></div><div><label class="text-xs font-bold text-gray-500">作者</label><input v-model="currentBook.author" class="w-full px-3 py-2 border rounded" required></div><div><label class="text-xs font-bold text-gray-500">ISBN</label><input v-model="currentBook.isbn" class="w-full px-3 py-2 border rounded" required></div><div><label class="text-xs font-bold text-gray-500">库存</label><input type="number" v-model.number="currentBook.stock" class="w-full px-3 py-2 border rounded" :disabled="!!currentBook.id"></div><div><label class="text-xs font-bold text-gray-500">可借</label><input type="number" v-model.number="currentBook.available" class="w-full px-3 py-2 border rounded" :disabled="!!currentBook.id"></div><div class="col-span-2"><label class="text-xs font-bold text-gray-500">封面</label><input v-model="currentBook.cover" class="w-full px-3 py-2 border rounded"></div></div>
+                        <button class="w-full mt-4 py-2 bg-gray-900 text-white rounded hover:bg-black">保存</button>
+                    </form>
                 </div>
 
-                <form @submit.prevent="handleUploadBooks" v-else>
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Excel 文件 (.xlsx)</label>
-                        <input type="file" @change="handleFileSelect" accept=".xlsx" class="w-full text-sm text-gray-500
-                            file:mr-4 file:py-2 file:px-4
-                            file:rounded-full file:border-0
-                            file:text-sm file:font-semibold
-                            file:bg-purple-50 file:text-purple-700
-                            hover:file:bg-purple-100" required>
-                    </div>
-
-                    <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p class="text-sm font-medium text-blue-800">请确保 Excel 格式正确 (第 1 行为表头):</p>
-                        <ul class="list-disc list-inside text-xs text-blue-700 mt-1">
-                            <li>第 1 列 (A): 书名 (必填)</li>
-                            <li>第 2 列 (B): 作者</li>
-                            <li>第 3 列 (C): ISBN (必填, 勿重复)</li>
-                            <li>第 4 列 (D): 库存 (数字, 默认 1)</li>
-                            <li>第 5 列 (E): 分类</li>
-                            <li>第 6 列 (F): 出版社</li>
-                            <li>第 7 列 (G): 价格 (数字, 默认 0)</li>
-                        </ul>
-                    </div>
-
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <button type="button" @click="closeModal" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">
-                            取消
-                        </button>
-                        <button type="submit" :disabled="!selectedFile" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
-                            开始上传
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <div v-if="modalType === 'alert'" class="bg-white rounded-lg shadow-2xl w-full max-w-sm p-6">
-                <div class="flex items-center">
-                    <div :class="['w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center',
-alertMessage.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600']">
-                        <ion-icon :name="alertMessage.type === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline'" class="text-3xl"></ion-icon>
-                    </div>
-                    <div class="ml-4">
-                        <h3 class="text-lg font-medium">{{ alertMessage.title }}</h3>
-                        <p class="text-sm text-gray-600">{{ alertMessage.text }}</p>
-                    </div>
+                <div v-if="modalType === 'user'">
+                    <h3 class="text-xl font-bold mb-4">用户信息</h3>
+                    <form @submit.prevent="handleSaveUser" class="space-y-3">
+                        <input v-model="currentUserForm.username" placeholder="用户名" class="w-full px-3 py-2 border rounded" required>
+                        <input v-model="currentUserForm.name" placeholder="姓名" class="w-full px-3 py-2 border rounded" required>
+                        <input v-model="currentUserForm.email" placeholder="邮箱" class="w-full px-3 py-2 border rounded" required>
+                        <input v-model="currentUserForm.password" placeholder="密码 (留空不改)" class="w-full px-3 py-2 border rounded">
+                        <select v-model="currentUserForm.role" class="w-full px-3 py-2 border rounded bg-white"><option value="user">用户</option><option value="admin">管理员</option><option value="superadmin">超管</option></select>
+                        <button class="w-full mt-4 py-2 bg-gray-900 text-white rounded">保存</button>
+                    </form>
                 </div>
-                <div class="mt-6 flex justify-end">
-                    <button @click="closeModal" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                        关闭
-                    </button>
+
+                <div v-if="modalType === 'importBooks'">
+                    <h3 class="text-xl font-bold mb-4">批量导入</h3>
+                    <div v-if="importResults.success || importResults.failed" class="mb-4 p-3 bg-gray-50 rounded text-sm"><span class="text-green-600 font-bold">成功: {{ importResults.success }}</span> <span class="text-red-600 font-bold ml-2">失败: {{ importResults.failed }}</span><ul class="mt-2 list-disc pl-4 text-red-500 text-xs"><li v-for="e in importResults.errors">{{ e }}</li></ul></div>
+                    <input type="file" @change="handleFileSelect" accept=".xlsx" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                    <button @click="handleUploadBooks" :disabled="!selectedFile" class="w-full mt-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50">上传</button>
+                </div>
+
+                <div v-if="modalType === 'password'">
+                    <h3 class="text-xl font-bold mb-4">修改密码</h3>
+                    <form @submit.prevent="handleChangePassword" class="space-y-3"><input type="password" v-model="passwordForm.oldPassword" placeholder="旧密码" class="w-full px-3 py-2 border rounded"><input type="password" v-model="passwordForm.newPassword" placeholder="新密码" class="w-full px-3 py-2 border rounded"><input type="password" v-model="passwordForm.confirmPassword" placeholder="确认新密码" class="w-full px-3 py-2 border rounded"><button class="w-full py-2 bg-gray-900 text-white rounded">确认</button></form>
                 </div>
             </div>
-
         </div>
     </transition>
 
 </div>
 
 <script>
-    const { createApp, ref, computed, onMounted, reactive } = Vue;
+    const { createApp, ref, computed, reactive, nextTick, watch } = Vue;
 
     createApp({
         setup() {
-// --- 响应式状态 (State) ---
+            // 1. 状态定义
             const currentUser = ref(null);
             const loginForm = reactive({ username: '', password: '' });
             const loginError = ref('');
             const currentPage = ref('dashboard');
             const isSidebarOpen = ref(true);
+            const toasts = ref([]);
+            const isLoading = ref(false);
+
+            // 2. 业务数据
+            const books = ref([]);
+            const users = ref([]);
+            const borrowRecords = ref([]);
             const popularBooks = ref([]);
             const activeUsers = ref([]);
             const categoryStats = ref([]);
             const peakTimeStats = ref([]);
             const overdueUsers = ref([]);
             const stagnantBooks = ref([]);
-            const isRegistering = ref(false);
-            const isForgotPassword = ref(false); // 【新增】用于显示忘记密码表单
-            const isVerificationStep = ref(false);
-            const verificationCode = ref('');
-            const usernameToVerify = ref('');
-            const registerForm = reactive({ username: '', name: '', password: '', confirmPassword: '', email: '' });
-            const registerError = ref('');
-            const registerSuccess = ref('');
-            const isLoading = ref(false);
-            const isModalOpen = ref(false);
-            const modalType = ref('');
-            const alertMessage = reactive({ title: '', text: '', type: 'success' });
-            const bookSearchQuery = ref('');
-            const userSearchQuery = ref('');
-            const returnBookId = ref('');
-            const returnUserId = ref('');
-            const users = ref([]);
-            const books = ref([]);
-            const borrowRecords = ref([]);
-            const resetForm = reactive({ email: '', code: '', newPassword: '' });
-            const profileForm = reactive({ name: '' });
-            const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' });
-            const selectedFile = ref(null);
-            const importResults = reactive({ success: 0, failed: 0, errors: [] });
             const lowStockBooks = ref([]);
-            // --- 【新增 V3】审计日志状态 ---
             const auditLogs = ref([]);
             const auditLogPage = ref(0);
             const auditLogTotalPages = ref(1);
 
-// --- 2. 配置 Axios API 实例 ---
-            const api = axios.create({
-                baseURL: '/',
-                timeout: 10000,
-            });
+            // 3. UI 控制
+            const isModalOpen = ref(false);
+            const modalType = ref('');
+            const bookSearchQuery = ref('');
+            const userSearchQuery = ref('');
+            const returnBookId = ref('');
+            const returnUserId = ref('');
+
+            // 4. 表单数据
+            const defaultBook = { id: null, title: '', author: '', isbn: '', stock: 1, available: 1, cover: '', category: '', publisher: '', price: 0, introduction: '' };
+            const currentBook = reactive({ ...defaultBook });
+            const currentUserForm = reactive({ id: null, username: '', name: '', email: '', role: 'user', password: '' });
+            const registerForm = reactive({ username: '', name: '', password: '', confirmPassword: '', email: '' });
+            const resetForm = reactive({ email: '', code: '', newPassword: '', codeSent: false });
+            const profileForm = reactive({ name: '' });
+            const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' });
+
+            // 5. 临时流程状态
+            const isRegistering = ref(false);
+            const isVerificationStep = ref(false);
+            const isForgotPassword = ref(false);
+            const verificationCode = ref('');
+            const registerError = ref('');
+            const registerSuccess = ref('');
+            const usernameToVerify = ref('');
+            const selectedFile = ref(null);
+            const importResults = reactive({ success: 0, failed: 0, errors: [] });
+            const chartColors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#6b7280'];
+
+            // 6. API 初始化
+            const api = axios.create({ baseURL: '/', timeout: 8000 });
             api.interceptors.request.use(config => {
                 const token = localStorage.getItem('token');
-                if (token) {
-                    config.headers.Authorization = `Bearer ${token}`;
-                }
+                if (token) config.headers.Authorization = `Bearer ${token}`;
                 return config;
-            }, error => {
-                return Promise.reject(error);
             });
 
-// --- 默认值 (V2) ---
-            const defaultBook = { id: null, title: '', author: '', isbn: '', stock: 1, available: 1, cover: '', category: '', publisher: '', status: '可借', price: 0.0, introduction: '' };
-            const currentBook = reactive({ ...defaultBook });
-            const defaultUser = { id: null, username: '', name: '', password: '', role: 'user', email: '' };
-            const currentUserForm = reactive({ ...defaultUser });
+            // 7. 辅助函数
+            let toastId = 0;
+            const showMessage = (title, text, type = 'success') => {
+                const id = toastId++;
+                toasts.value.push({ id, title, text, type });
+                setTimeout(() => toasts.value = toasts.value.filter(t => t.id !== id), 3000);
+            };
+            const clearErrors = () => { loginError.value=''; registerError.value=''; };
+            const getCleanRole = (r) => (r || 'ROLE_USER').replace(/ROLE_/gi, '').toLowerCase();
+            const getRoleName = (r) => ({user:'用户',admin:'管理员',superadmin:'超级管理员'}[getCleanRole(r)] || '未知');
+            const isOverdue = (d) => new Date(d) < new Date(new Date().toISOString().split('T')[0]);
+            const closeModal = () => { isModalOpen.value=false; selectedFile.value=null; };
+            const openBookModal = (b) => { Object.assign(currentBook, b || defaultBook); if(!b) currentBook.id=null; modalType.value='book'; isModalOpen.value=true; };
+            const openUserModal = (u) => { Object.assign(currentUserForm, u || {role:'user'}); if(!u) currentUserForm.id=null; modalType.value='user'; isModalOpen.value=true; };
+            const handleFileSelect = (e) => selectedFile.value = e.target.files[0];
+            const clearBookSearch = () => bookSearchQuery.value = '';
 
-// --- 页面定义 (V2) ---
-            const allPages = [
-                { id: 'dashboard', title: '仪表盘', icon: 'grid-outline', roles: ['user', 'admin', 'superadmin'] },
-                { id: 'profile', title: '个人资料', icon: 'person-circle-outline', roles: ['user', 'admin', 'superadmin'] },
-                { id: 'manageBooks', title: '图书管理', icon: 'library-outline', roles: ['user', 'admin', 'superadmin'] },
-                { id: 'manageBorrow', title: '借还管理', icon: 'swap-horizontal-outline', roles: ['admin', 'superadmin'] },
-                { id: 'records', title: '借阅记录', icon: 'document-text-outline', roles: ['user', 'admin', 'superadmin'] },
-                { id: 'manageUsers', title: '用户管理', icon: 'people-outline', roles: ['superadmin'] },
-                { id: 'auditLogs', title: '系统日志', icon: 'receipt-outline', roles: ['superadmin'] },
-                { id: 'analysis', title: '数据分析', icon: 'bar-chart-outline', roles: ['admin', 'superadmin'] },
-            ];
+            const getBookById = (id) => books.value.find(b => b.id === id);
+            const getUserById = (id) => users.value.find(u => u.id === id);
+            const isBookBorrowedByUser = (b) => borrowRecords.value.some(r => r.bookId === b.id && r.userId === currentUser.value.id && r.status === 'borrowed');
+            const isBookReservedByUser = (b) => borrowRecords.value.some(r => r.bookId === b.id && r.userId === currentUser.value.id && (r.status === 'reserved' || r.status === 'awaiting_pickup'));
 
-// --- 计算属性 (V2) ---
-            const visiblePages = computed(() => {
-                if (!currentUser.value) return [];
-                const rawRole = currentUser.value.role || '';
-                const cleanRole = rawRole.replace(/ROLE_/gi, '').toLowerCase();
-
-                if (cleanRole === 'user') {
-                    // V2: 普通用户现在可以看到 'manageBooks'
-                    return allPages.filter(p => p.roles.includes('user'));
-                }
-                return allPages.filter(p => p.roles.includes(cleanRole));
-            });
-
-            const currentPageTitle = computed(() => allPages.find(p => p.id === currentPage.value)?.title || '仪表盘');
-
-            const filteredBooks = computed(() => {
-                const query = bookSearchQuery.value.toLowerCase();
-                if (!query) return books.value;
-                return books.value.filter(b =>
-                    b.title.toLowerCase().includes(query) ||
-                    b.author.toLowerCase().includes(query) ||
-                    b.isbn.toLowerCase().includes(query)
-                );
-            });
-
-            const filteredUsers = computed(() => {
-                const query = userSearchQuery.value.toLowerCase();
-                if (!query) return users.value;
-                return users.value.filter(u =>
-                    u.username.toLowerCase().includes(query) ||
-                    u.name.toLowerCase().includes(query) ||
-                    (u.id && u.id.toString().toLowerCase().includes(query))
-                );
-            });
-
-            const filteredRecords = computed(() => {
-                if (!currentUser.value) return [];
-                const cleanRole = (currentUser.value.role || '').replace(/ROLE_/gi, '').toLowerCase();
-                if (cleanRole === 'user') {
-                    return borrowRecords.value.filter(r => r.userId === currentUser.value.id);
-                }
-                return borrowRecords.value;
-            });
-
-            const pendingReservations = computed(() => borrowRecords.value.filter(r => r.status === 'reserved' || r.status === 'awaiting_pickup'));
-            const myBorrowCount = computed(() => borrowRecords.value.filter(r => r.userId === currentUser.value.id && r.status === 'borrowed').length);
-            const myReservationCount = computed(() => borrowRecords.value.filter(r => r.userId === currentUser.value.id && (r.status === 'reserved' || r.status === 'awaiting_pickup')).length);
-            const totalBookCount = computed(() => books.value.length);
-            const totalUserCount = computed(() => users.value.length);
-
+            // 8. 原生CSS图表逻辑 (绝对稳定)
             const pieChartStyle = computed(() => {
-                if (!categoryStats.value || categoryStats.value.length === 0) return '';
-                const total = categoryStats.value.reduce((sum, item) => sum + item.count, 0);
-                if (total === 0) return '';
+                if (!categoryStats.value.length) return 'gray';
+                const total = categoryStats.value.reduce((acc, cur) => acc + cur.count, 0);
                 let currentAngle = 0;
-                const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#6b7280'];
-                const segments = [];
-                categoryStats.value.forEach((item, index) => {
-                    const percentage = item.count / total;
-                    const endAngle = currentAngle + percentage * 360;
-                    segments.push(`${colors[index % colors.length]} ${currentAngle}deg ${endAngle}deg`);
-                    currentAngle = endAngle;
+                const segments = categoryStats.value.map((cat, i) => {
+                    const start = currentAngle;
+                    const end = currentAngle + (cat.count / total) * 360;
+                    currentAngle = end;
+                    return `${chartColors[i % chartColors.length]} ${start}deg ${end}deg`;
                 });
                 return `conic-gradient(${segments.join(', ')})`;
             });
 
-// --- 辅助方法 (Helpers) ---
-            const getRoleName = (role) => {
-                if (!role) return '未知';
-                const roles = { user: '普通用户', admin: '管理员', superadmin: '超级管理员' };
-                let cleanRole = role.replace(/ROLE_/gi, '').toLowerCase();
-                return roles[cleanRole] || '未知';
-            };
-            const showMessage = (title, text, type = 'success') => {
-                alertMessage.title = title;
-                alertMessage.text = text;
-                alertMessage.type = type;
-                modalType.value = 'alert';
-                isModalOpen.value = true;
-            };
-            const closeModal = () => {
-                isModalOpen.value = false;
-                modalType.value = '';
-                Object.assign(currentBook, defaultBook, { id: null });
-                Object.assign(currentUserForm, defaultUser, { id: null });
-
-                // --- 【新增】 ---
-                selectedFile.value = null;
-                Object.assign(importResults, { success: 0, failed: 0, errors: [] });
-                // --- 【新增结束】 ---
-            };
-            const getToday = () => new Date().toISOString().split('T')[0];
-            const getFutureDate = (days) => {
-                const date = new Date();
-                date.setDate(date.getDate() + days);
-                return date.toISOString().split('T')[0];
-            };
-            const isOverdue = (dueDate) => {
-                if (!dueDate) return false;
-                const today = new Date(getToday());
-                const due = new Date(dueDate);
-                return due < today;
-            };
-            const getBookById = (id) => books.value.find(b => b.id === id);
-            const getUserById = (id) => users.value.find(u => u.id === id);
-            const clearBookSearch = () => bookSearchQuery.value = '';
-
-            const isBookBorrowedByUser = (book) => {
-                if (!currentUser.value) return false;
-                return borrowRecords.value.some(r =>
-                    r.bookId === book.id &&
-                    r.userId === currentUser.value.id &&
-                    r.status === 'borrowed'
-                );
-            };
-
-            const isBookReservedByUser = (book) => {
-                if (!currentUser.value) return false;
-                return borrowRecords.value.some(r =>
-                    r.bookId === book.id &&
-                    r.userId === currentUser.value.id &&
-                    (r.status === 'reserved' || r.status === 'awaiting_pickup')
-                );
-            };
-
-// --- 3. 数据获取 (API) ---
-            const fetchAnalysisData = async () => {
-                try {
-                    await Promise.all([
-                        api.get('/api/records/analysis/popular-books').then(res => { popularBooks.value = res.data; }),
-                        api.get('/api/records/analysis/active-users').then(res => { activeUsers.value = res.data; }),
-                        api.get('/api/books/analysis/categories').then(res => { categoryStats.value = res.data; }),
-                        api.get('/api/records/analysis/peak-times').then(res => { peakTimeStats.value = res.data; }),
-                        api.get('/api/records/analysis/overdue-users').then(res => { overdueUsers.value = res.data; }),
-                        api.get('/api/books/analysis/stagnant-books').then(res => { stagnantBooks.value = res.data; })
-                    ]);
-                } catch (error) {
-                    console.error("加载分析数据失败:", error);
-                    showMessage('加载失败', '无法获取数据分析报告。', 'error');
-                }
-            };
+            // 9. 数据获取
             const fetchAllData = async () => {
                 isLoading.value = true;
                 try {
                     await Promise.all([
-                        fetchBooks(),
-                        fetchUsers(),
-                        fetchRecords(),
-                        fetchAnalysisData(),
-                        fetchLowStockBooks()
+                        api.get('/api/books').then(r => books.value = r.data),
+                        api.get('/api/records').then(r => borrowRecords.value = r.data),
+                        getCleanRole(currentUser.value?.role)!=='user' ? api.get('/api/users').then(r => users.value = r.data) : null,
+                        getCleanRole(currentUser.value?.role)!=='user' ? api.get('/api/books/low-stock').then(r => lowStockBooks.value = r.data) : null,
+                        api.get('/api/records/analysis/popular-books').then(r => popularBooks.value = r.data).catch(()=>{}),
+                        api.get('/api/records/analysis/active-users').then(r => activeUsers.value = r.data).catch(()=>{}),
+                        api.get('/api/books/analysis/categories').then(r => categoryStats.value = r.data).catch(()=>{}),
+                        api.get('/api/records/analysis/peak-times').then(r => peakTimeStats.value = r.data).catch(()=>{}),
+                        api.get('/api/records/analysis/overdue-users').then(r => overdueUsers.value = r.data).catch(()=>{}),
+                        api.get('/api/books/analysis/stagnant-books').then(r => stagnantBooks.value = r.data).catch(()=>{})
                     ]);
-                } catch (error) {
-                    console.error("加载初始数据失败:", error);
-                    showMessage('加载失败', '无法连接到服务器获取核心数据。', 'error');
-                } finally {
-                    isLoading.value = false;
-                }
-            };
-            const fetchBooks = async () => {
-                try {
-                    const response = await api.get('/api/books');
-                    books.value = response.data;
-                } catch (error) {
-                    console.error("获取图书失败:", error);
-                    showMessage('加载失败', '无法获取图书列表。', 'error');
-                }
-            };
-            const fetchUsers = async () => {
-                const cleanRole = (currentUser.value?.role || '').replace(/ROLE_/gi, '').toLowerCase();
-                if (cleanRole === 'user') {
-                    users.value = [];
-                    return;
-                }
-                try {
-                    const response = await api.get('/api/users');
-                    users.value = response.data;
-                } catch (error) {
-                    console.error("获取用户失败:", error);
-                    if (cleanRole !== 'user') {
-                        showMessage('加载失败', '无法获取用户列表。', 'error');
-                    }
-                }
-            };
-            const fetchRecords = async () => {
-                try {
-                    const response = await api.get('/api/records');
-                    borrowRecords.value = response.data;
-                } catch (error) {
-                    console.error("获取记录失败:", error);
-                    showMessage('加载失败', '无法获取借阅记录。', 'error');
-                }
+                } catch(e) { console.error(e); }
+                finally { isLoading.value = false; }
             };
 
-            // --- 【新增 V3】获取低库存图书 ---
-            const fetchLowStockBooks = async () => {
-                // 仅当用户是管理员时才请求
-                const cleanRole = (currentUser.value?.role || '').replace(/ROLE_/gi, '').toLowerCase();
-                if (cleanRole === 'user') {
-                    lowStockBooks.value = []; // 确保普通用户数据为空
-                    return;
-                }
-
-                try {
-                    const response = await api.get('/api/books/low-stock');
-                    lowStockBooks.value = response.data;
-                } catch (error) {
-                    console.error("获取低库存图书失败:", error);
-                    // (这里不弹窗，避免打扰管理员)
-                }
-            };
-
-            // --- 【新增 V3】获取审计日志 ---
-            const fetchAuditLogs = async (page = 0) => {
-                // 仅当用户是超管时才请求
-                const cleanRole = (currentUser.value?.role || '').replace(/ROLE_/gi, '').toLowerCase();
-                if (cleanRole !== 'superadmin') {
-                    auditLogs.value = [];
-                    return;
-                }
-
+            const fetchAuditLogs = async (page=0) => {
+                if(getCleanRole(currentUser.value?.role)!=='superadmin') return;
                 isLoading.value = true;
                 try {
-                    const response = await api.get(`/api/audit-logs?page=${page}&size=20`);
-                    auditLogs.value = response.data.content; // 响应体是 Page 对象
-                    auditLogPage.value = response.data.number;
-                    auditLogTotalPages.value = response.data.totalPages;
-                } catch (error) {
-                    console.error("获取审计日志失败:", error);
-                    showMessage('加载失败', '无法获取系统日志。', 'error');
-                } finally {
-                    isLoading.value = false;
-                }
+                    const res = await api.get(`/api/audit-logs?page=${page}&size=20`);
+                    auditLogs.value = res.data.content;
+                    auditLogPage.value = res.data.number;
+                    auditLogTotalPages.value = res.data.totalPages;
+                } catch(e){} finally { isLoading.value = false; }
             };
+            watch(currentPage, (v) => { if(v==='auditLogs') fetchAuditLogs(0); });
 
-// --- 核心业务逻辑 (API) ---
-
-            // 1. 【修改】认证 - 登录
+            // 10. 业务操作
             const handleLogin = async () => {
-                isLoading.value = true;
-                loginError.value = '';
+                isLoading.value = true; loginError.value = '';
                 try {
-                    const response = await api.post('/login', loginForm);
-                    if (response.data && response.data.token && response.data.user) {
-                        localStorage.setItem('token', response.data.token);
-                        let user = response.data.user;
-                        user.role = (user.role || '').replace(/ROLE_/gi, '').toLowerCase();
-                        currentUser.value = user;
-                        loginForm.username = '';
-                        loginForm.password = '';
-                        profileForm.name = response.data.user.name;
-                        currentPage.value = 'dashboard';
-                        await fetchAllData();
-                    } else {
-                        loginError.value = '登录失败：服务器返回数据格式不正确。';
-                    }
-                } catch (error) {
-                    console.error("登录失败:", error);
-
-                    // --- 【核心修改】检查特定错误消息 ---
-                    if (error.response && error.response.data && error.response.data.message) {
-                        const msg = error.response.data.message;
-                        if (msg.includes("账户尚未激活")) {
-                            loginError.value = '账户尚未激活，请检查邮箱验证码。';
-                            // 切换到验证视图
-                            isRegistering.value = true;
-                            isVerificationStep.value = true;
-                            isForgotPassword.value = false;
-                            usernameToVerify.value = loginForm.username;
-                            registerSuccess.value = '';
-                            registerError.value = '您的账户尚未激活。';
-                        } else {
-                            loginError.value = '学号或密码错误！';
-                        }
-                    } else {
-                        loginError.value = '登录失败，无法连接到服务器。';
-                    }
-                } finally {
-                    isLoading.value = false;
-                }
+                    const res = await api.post('/login', loginForm);
+                    localStorage.setItem('token', res.data.token);
+                    let user = res.data.user; user.role = getCleanRole(user.role);
+                    currentUser.value = user; profileForm.name = user.name;
+                    await fetchAllData(); showMessage('欢迎', user.name);
+                } catch(e) {
+                    if(e.response?.data?.message?.includes('激活')) { loginError.value='未激活'; usernameToVerify.value=loginForm.username; isRegistering.value=true; isVerificationStep.value=true; }
+                    else loginError.value = '账号或密码错误';
+                } finally { isLoading.value = false; }
             };
+
             const handleRegister = async () => {
-                registerError.value = '';
-                registerSuccess.value = '';
-                if (registerForm.password !== registerForm.confirmPassword) {
-                    registerError.value = '两次输入的密码不一致！';
-                    return;
-                }
+                registerError.value=''; if(registerForm.password!==registerForm.confirmPassword) return registerError.value='密码不一致';
                 isLoading.value = true;
-                try {
-                    const payload = {
-                        username: registerForm.username,
-                        name: registerForm.name,
-                        password: registerForm.password,
-                        email: registerForm.email
-                    };
-                    const response = await api.post('/register', payload);
-                    registerSuccess.value = response.data.message || '验证码已发送，请检查您的邮箱！';
-                    usernameToVerify.value = registerForm.username;
-                    isVerificationStep.value = true;
-                } catch (error) {
-                    console.error("注册失败:", error);
-                    registerError.value = error.response?.data?.message || '注册失败，请稍后再试。';
-                } finally {
-                    isLoading.value = false;
-                }
+                try { await api.post('/register', registerForm); usernameToVerify.value=registerForm.username; isVerificationStep.value=true; }
+                catch(e) { registerError.value='注册失败'; } finally { isLoading.value=false; }
             };
-            const handleVerification = async () => {
-                isLoading.value = true;
-                registerError.value = '';
-                registerSuccess.value = '';
-                try {
-                    const payload = {
-                        username: usernameToVerify.value,
-                        code: verificationCode.value
-                    };
-                    const response = await api.post('/register/verify', payload);
-                    showMessage('激活成功', '您的账户已成功激活，请登录。');
-                    isRegistering.value = false;
-                    isVerificationStep.value = false;
-                    verificationCode.value = '';
-                    usernameToVerify.value = '';
-                    Object.assign(registerForm, { username: '', name: '', password: '', confirmPassword: '', email: '' });
-                } catch (error) {
-                    console.error("验证失败:", error);
-                    registerError.value = error.response?.data?.message || '验证失败，验证码错误或已过期。';
-                } finally {
-                    isLoading.value = false;
-                }
-            };
+            const handleVerification = async () => { isLoading.value=true; try { await api.post('/register/verify', {username:usernameToVerify.value, code:verificationCode.value}); isRegistering.value=false; isVerificationStep.value=false; showMessage('激活成功'); } catch(e){ registerError.value='验证码错误'; } finally { isLoading.value=false; } };
 
-            // 4. 【新增 V2】认证 - 忘记密码 (步骤 1: 发送重置码)
-            const handleForgotPassword = async () => {
-                isLoading.value = true;
-                registerError.value = ''; // 重用注册错误提示
-                registerSuccess.value = ''; // 重用注册成功提示
-                try {
-                    const payload = { email: resetForm.email };
-                    const response = await api.post('/forgot-password', payload);
+            const handleLogout = () => { currentUser.value=null; localStorage.removeItem('token'); };
 
-                    registerSuccess.value = response.data.message || '重置码已发送至您的邮箱。';
+            // 操作封装
+            const action = async (fn, msg) => { try { await fn(); showMessage('成功', msg); await fetchAllData(); } catch(e) { showMessage('失败', e.response?.data?.message||'操作失败', 'error'); } };
 
-                } catch (error) {
-                    console.error("请求重置码失败:", error);
-                    registerError.value = error.response?.data?.message || '操作失败，请确认邮箱是否正确。';
-                } finally {
-                    isLoading.value = false;
-                }
-            };
+            const handleBorrow = (b) => action(() => api.post('/api/records/borrow', {bookId: b.id}), '借阅成功');
+            const handleReserve = (b) => action(() => api.post('/api/records/reserve', {bookId: b.id}), '预约成功');
+            const handleRenew = (r) => action(() => api.put(`/api/records/renew/${r.id}`), '续借成功');
+            const handleReturn = () => action(() => api.post('/api/records/return', {bookIdentifier: returnBookId.value, userId: returnUserId.value||null}), '归还成功');
+            const handleProcessReservation = (r) => action(() => api.post(`/api/records/process-reservation/${r.id}`), '批准成功');
+            const handleDeleteBook = (b) => confirm('删除?') && action(() => api.delete(`/api/books/${b.id}`), '已删除');
+            const handleDeleteUser = (u) => confirm('删除?') && action(() => api.delete(`/api/users/${u.id}`), '已删除');
 
-// 5. 【新增 V2】认证 - 重置密码 (步骤 2: 验证并重置)
-            const handleResetPassword = async () => {
-                isLoading.value = true;
-                registerError.value = '';
-                registerSuccess.value = '';
-                try {
-                    // PasswordResetRequest DTO 需要 email, code, newPassword
-                    const response = await api.post('/reset-password', resetForm);
+            const handleSaveBook = async () => { try { if(currentBook.id) await api.put(`/api/books/${currentBook.id}`, currentBook); else await api.post('/api/books', currentBook); closeModal(); showMessage('已保存'); await fetchAllData(); } catch(e){} };
+            const handleSaveUser = async () => { try { let u={...currentUserForm}; if(!u.password) delete u.password; if(u.id) await api.put(`/api/users/${u.id}`, u); else await api.post('/api/users', u); closeModal(); showMessage('已保存'); await fetchAllData(); } catch(e){} };
 
-                    showMessage('密码重置成功', '您现在可以使用新密码登录了。');
-
-                    // 成功后返回登录界面
-                    isForgotPassword.value = false;
-                    Object.assign(resetForm, { email: '', code: '', newPassword: '' });
-
-                } catch (error) {
-                    console.error("重置密码失败:", error);
-                    registerError.value = error.response?.data?.message || '重置失败，验证码错误或已过期。';
-                } finally {
-                    isLoading.value = false;
-                }
-            };
-
-            const handleLogout = () => {
-                currentUser.value = null;
-                localStorage.removeItem('token');
-                currentPage.value = 'dashboard';
-                books.value = [];
-                users.value = [];
-                borrowRecords.value = [];
-                popularBooks.value = [];
-                activeUsers.value = [];
-                categoryStats.value = [];
-                peakTimeStats.value = [];
-                overdueUsers.value = [];
-                stagnantBooks.value = [];
-            };
-            const handleExportExcel = async () => {
-                isLoading.value = true;
-                try {
-                    const response = await api.get('/api/records/export/excel', {
-                        responseType: 'blob'
-                    });
-                    let filename = 'borrow_records.xlsx';
-                    const contentDisposition = response.headers['content-disposition'];
-                    if (contentDisposition) {
-                        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-                        if (filenameMatch && filenameMatch.length > 1) {
-                            filename = filenameMatch[1];
-                        }
-                    }
-                    const url = window.URL.createObjectURL(new Blob([response.data]));
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.setAttribute('download', filename);
-                    document.body.appendChild(link);
-                    link.click();
-                    link.parentNode.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                } catch (error) {
-                    console.error("导出 Excel 失败:", error);
-                    showMessage('导出失败', '无法从服务器下载文件。', 'error');
-                } finally {
-                    isLoading.value = false;
-                }
-            };
-            const openBookModal = (book) => {
-                if (book) {
-                    Object.assign(currentBook, book);
-                } else {
-                    Object.assign(currentBook, defaultBook, { id: null });
-                }
-                modalType.value = 'book';
-                isModalOpen.value = true;
-            };
-            const handleSaveBook = async () => {
-                isLoading.value = true;
-                try {
-                    if (currentBook.id) {
-                        await api.put(`/api/books/${currentBook.id}`, currentBook);
-                    } else {
-                        await api.post('/api/books', currentBook);
-                    }
-                    showMessage('操作成功', '图书信息已保存');
-                    closeModal();
-                    await fetchBooks();
-                } catch (error) {
-                    console.error("保存图书失败:", error);
-                    showMessage('操作失败', '无法保存图书到服务器。', 'error');
-                } finally {
-                    isLoading.value = false;
-                }
-            };
-
-            // --- 【新增 V3】通用的分析报表导出方法 ---
-            const handleExportAnalysis = async (reportName, defaultFilename) => {
-                isLoading.value = true;
-                try {
-                    // 调用新的 API 路径
-                    const response = await api.get(`/api/analysis/export/${reportName}`, {
-                        responseType: 'blob'
-                    });
-
-                    // --- 重用 handleExportExcel 中的下载逻辑 ---
-                    let filename = defaultFilename;
-                    const contentDisposition = response.headers['content-disposition'];
-                    if (contentDisposition) {
-                        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-                        if (filenameMatch && filenameMatch.length > 1) {
-                            filename = filenameMatch[1];
-                        }
-                    }
-                    const url = window.URL.createObjectURL(new Blob([response.data]));
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.setAttribute('download', filename);
-                    document.body.appendChild(link);
-                    link.click();
-                    link.parentNode.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                    // --- 逻辑重用结束 ---
-
-                } catch (error) {
-                    console.error(`导出 ${reportName} 失败:`, error);
-                    showMessage('导出失败', '无法从服务器下载该报表。', 'error');
-                } finally {
-                    isLoading.value = false;
-                }
-            };
-
-            const handleDeleteBook = async (book) => {
-                if (confirm(`确认要删除/出库图书 《${book.title}》 吗？`)) {
-                    isLoading.value = true;
-                    try {
-                        await api.delete(`/api/books/${book.id}`);
-                        showMessage('操作成功', `《${book.title}》 已删除`);
-                        await fetchBooks();
-                    } catch (error) {
-                        console.error("删除图书失败:", error);
-                        showMessage('操作失败', '无法从服务器删除该图书。', 'error');
-                    } finally {
-                        isLoading.value = false;
-                    }
-                }
-            };
-            const openUserModal = (user) => {
-                if (user) {
-                    const cleanRole = (user.role || '').replace(/ROLE_/gi, '').toLowerCase();
-                    Object.assign(currentUserForm, user, { password: '', role: cleanRole });
-                } else {
-                    Object.assign(currentUserForm, defaultUser, { id: null });
-                }
-                modalType.value = 'user';
-                isModalOpen.value = true;
-            };
-            const handleSaveUser = async () => {
-                isLoading.value = true;
-                try {
-                    const userData = { ...currentUserForm };
-                    if (!userData.password) {
-                        delete userData.password;
-                    }
-                    if (userData.id) {
-                        await api.put(`/api/users/${userData.id}`, userData);
-                    } else {
-                        await api.post('/api/users', userData);
-                    }
-                    showMessage('操作成功', '用户信息已保存');
-                    closeModal();
-                    await fetchUsers();
-                } catch (error) {
-                    console.error("保存用户失败:", error);
-                    showMessage('操作失败', '无法保存用户到服务器。', 'error');
-                } finally {
-                    isLoading.value = false;
-                }
-            };
-            const handleDeleteUser = async (user) => {
-                if (user.id === currentUser.value.id) {
-                    showMessage('操作失败', '不能删除自己', 'error');
-                    return;
-                }
-                if (confirm(`确认要删除用户 ${user.name} (${user.username}) 吗？`)) {
-                    isLoading.value = true;
-                    try {
-                        await api.delete(`/api/users/${user.id}`);
-                        showMessage('操作成功', `用户 ${user.name} 已删除`);
-                        await fetchUsers();
-                    } catch (error) {
-                        console.error("删除用户失败:", error);
-                        showMessage('操作失败', '无法从服务器删除该用户。', 'error');
-                    } finally {
-                        isLoading.value = false;
-                    }
-                }
-            };
-            // --- 【新增】更新个人资料 ---
-            const handleUpdateProfile = async () => {
-                isLoading.value = true;
-                try {
-                    const response = await api.put('/api/profile/me', profileForm);
-                    // response.data 包含了更新后的 UserDTO
-
-                    // 关键：更新本地的 currentUser 状态，以便侧边栏和顶栏的姓名立刻刷新
-                    currentUser.value.name = response.data.name;
-
-                    showMessage('操作成功', '您的姓名已更新。');
-                } catch (error) {
-                    console.error("更新资料失败:", error);
-                    showMessage('操作失败', '无法更新您的资料。', 'error');
-                } finally {
-                    isLoading.value = false;
-                }
-            };
-
-            // --- 【新增】修改密码 ---
-            const handleChangePassword = async () => {
-                if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-                    showMessage('操作失败', '两次输入的新密码不一致！', 'error');
-                    return;
-                }
-
-                isLoading.value = true;
-                try {
-                    const payload = {
-                        oldPassword: passwordForm.oldPassword,
-                        newPassword: passwordForm.newPassword
-                    };
-                    await api.put('/api/profile/change-password', payload);
-
-                    showMessage('操作成功', '您的密码已修改。');
-
-                    // 清空密码表单
-                    passwordForm.oldPassword = '';
-                    passwordForm.newPassword = '';
-                    passwordForm.confirmPassword = '';
-
-                } catch (error) {
-                    console.error("修改密码失败:", error);
-                    const errorMsg = error.response?.data?.message || '操作失败，请重试。';
-                    showMessage('操作失败', errorMsg, 'error');
-                } finally {
-                    isLoading.value = false;
-                }
-            };
-
-            // --- 【新增 V3】图书导入方法 ---
-
-            // 1. 打开模态框
-            const openImportModal = () => {
-                modalType.value = 'importBooks';
-                isModalOpen.value = true;
-            };
-
-            // 2. 监听文件选择
-            const handleFileSelect = (event) => {
-                selectedFile.value = event.target.files[0];
-            };
-
-            // 3. 上传文件
             const handleUploadBooks = async () => {
-                if (!selectedFile.value) {
-                    showMessage('操作失败', '请先选择一个 .xlsx 文件', 'error');
-                    return;
-                }
-
-                isLoading.value = true;
-
-                const formData = new FormData();
-                formData.append('file', selectedFile.value);
-
-                try {
-                    const response = await api.post('/api/books/upload', formData, {
-                        headers: {
-                            'Content-Type': 'multipart/form-data'
-                        }
-                    });
-
-                    // 后端返回了处理结果
-                    Object.assign(importResults, response.data);
-
-                    // 刷新图书列表
-                    await fetchBooks();
-
-                } catch (error) {
-                    console.error("上传失败:", error);
-                    const errorMsg = error.response?.data?.message || '文件上传失败。';
-                    Object.assign(importResults, { success: 0, failed: -1, errors: [errorMsg] });
-                } finally {
-                    isLoading.value = false;
-                }
+                if(!selectedFile.value) return;
+                let fd = new FormData(); fd.append('file', selectedFile.value);
+                try { const res = await api.post('/api/books/upload', fd, {headers:{'Content-Type':'multipart/form-data'}}); Object.assign(importResults, res.data); await fetchAllData(); if(!importResults.failed) closeModal(); } catch(e){}
             };
-            // --- 【新增结束】 ---
 
-            const handleBorrow = async (book) => {
-                isLoading.value = true;
+            // 通用下载函数
+            const handleDownload = async (url, filename) => {
+                isLoading.value = true; // 添加 loading 状态
                 try {
-                    await api.post('/api/records/borrow', { bookId: book.id });
-                    showMessage('借阅成功', `《${book.title}》 已借阅。`);
-                    await fetchAllData();
-                } catch (error) {
-                    console.error("借阅失败:", error);
-                    const errorMsg = error.response?.data?.message || '操作失败，请稍后再试。';
-                    showMessage('借阅失败', errorMsg, 'error');
-                } finally {
-                    isLoading.value = false;
-                }
-            };
-            const handleReserve = async (book) => {
-                isLoading.value = true;
-                try {
-                    await api.post('/api/records/reserve', { bookId: book.id });
-                    showMessage('预约成功', `《${book.title}》 已预约。`);
-                    await fetchAllData();
-                } catch (error) {
-                    console.error("预约失败:", error);
-                    const errorMsg = error.response?.data?.message || '您已预约过此书或操作失败。';
-                    showMessage('预约失败', errorMsg, 'error');
-                } finally {
-                    isLoading.value = false;
-                }
-            };
-            const handleRenew = async (record) => {
-                isLoading.value = true;
-                try {
-                    await api.put(`/api/records/renew/${record.id}`);
-                    showMessage('续借成功', '续借申请已通过。');
-                    await fetchRecords();
-                } catch (error) {
-                    console.error("续借失败:", error);
-                    const errorMsg = error.response?.data?.message || '续借失败，可能已达续借次数。';
-                    showMessage('续借失败', errorMsg, 'error');
-                } finally {
-                    isLoading.value = false;
-                }
-            };
-            const handleReturn = async () => {
-                const bookIdentifier = returnBookId.value.trim();
-                if (!bookIdentifier) {
-                    showMessage('归还失败', '请输入图书ID或ISBN', 'error');
-                    return;
-                }
-                isLoading.value = true;
-                try {
-                    const payload = {
-                        bookIdentifier: bookIdentifier,
-                        userId: returnUserId.value.trim() || null
-                    };
-                    await api.post('/api/records/return', payload);
-                    showMessage('归还成功', '图书已成功归还。');
-                    returnBookId.value = '';
-                    returnUserId.value = '';
-                    await fetchAllData();
-                } catch (error) {
-                    console.error("归还失败:", error);
-                    const errorMsg = error.response?.data?.message || '未找到该书的借阅记录。';
-                    showMessage('归还失败', errorMsg, 'error');
-                } finally {
-                    isLoading.value = false;
-                }
-            };
-            const handleProcessReservation = async (reservation) => {
-                isLoading.value = true;
-                try {
-                    await api.post(`/api/records/process-reservation/${reservation.id}`);
-                    showMessage('处理成功', '已成功为用户办理借阅。');
-                    await fetchAllData();
-                } catch (error) {
-                    console.error("处理预约失败:", error);
-                    const errorMsg = error.response?.data?.message || '处理失败，可能库存不足。';
-                    showMessage('处理失败', errorMsg, 'error');
+                    const res = await api.get(url, { responseType: 'blob' });
+                    const link = document.createElement('a');
+                    link.href = window.URL.createObjectURL(new Blob([res.data]));
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    showMessage('成功', '下载已开始');
+                } catch (e) {
+                    console.error("Download error:", e);
+                    showMessage('失败', '导出失败，请检查网络或权限', 'error');
                 } finally {
                     isLoading.value = false;
                 }
             };
 
-            onMounted(() => {
-                // (留空，等待用户手动登录)
+            const handleExportExcel = () => handleDownload('/api/records/export/excel', 'records.xlsx');
+            const handleExportAnalysis = (part, name) => handleDownload(`/api/analysis/export/${part}`, name);
+
+            const handleUpdateProfile = async () => { try { await api.put('/api/profile/me', profileForm); currentUser.value.name=profileForm.name; showMessage('已更新'); } catch(e){} };
+            const handleChangePassword = async () => { try { await api.put('/api/profile/change-password', {oldPassword:passwordForm.oldPassword, newPassword:passwordForm.newPassword}); showMessage('密码已改'); closeModal(); } catch(e){} };
+            const handleForgotPassword = async () => { try { await api.post('/forgot-password', {email:resetForm.email}); resetForm.codeSent=true; } catch(e){} };
+            const handleResetPassword = async () => { try { await api.post('/reset-password', resetForm); isForgotPassword.value=false; showMessage('密码重置成功'); } catch(e){} };
+
+            // 计算属性
+            const visiblePages = computed(() => {
+                const role = getCleanRole(currentUser.value?.role);
+                const all = [
+                    {id:'dashboard',title:'仪表盘',icon:'grid-outline',roles:['user','admin','superadmin']},
+                    {id:'manageBooks',title:'图书资源',icon:'library-outline',roles:['user','admin','superadmin']},
+                    {id:'records',title:'借阅记录',icon:'reader-outline',roles:['user','admin','superadmin']},
+                    {id:'manageBorrow',title:'借还管理',icon:'swap-horizontal-outline',roles:['admin','superadmin']},
+                    {id:'analysis',title:'数据分析',icon:'stats-chart-outline',roles:['admin','superadmin']},
+                    {id:'manageUsers',title:'用户管理',icon:'people-outline',roles:['superadmin']},
+                    {id:'auditLogs',title:'审计日志',icon:'shield-checkmark-outline',roles:['superadmin']},
+                    {id:'profile',title:'个人中心',icon:'person-outline',roles:['user','admin','superadmin']}
+                ];
+                return all.filter(p => p.roles.includes(role));
             });
+            const currentPageTitle = computed(() => visiblePages.value.find(p=>p.id===currentPage.value)?.title || 'LMS');
 
-            // --- 【新增或修改】监听当前页面变化 ---
-            Vue.watch(currentPage, (newPage) => {
-                if (newPage === 'auditLogs') {
-                    fetchAuditLogs(0); // 加载第一页
-                }
-                // (将来可以为其他需要时才加载的页面添加)
-            });
+            const filteredBooks = computed(() => books.value.filter(b => b.title.includes(bookSearchQuery.value) || b.isbn.includes(bookSearchQuery.value)));
+            const filteredRecords = computed(() => getCleanRole(currentUser.value?.role)==='user' ? borrowRecords.value.filter(r=>r.userId===currentUser.value.id) : borrowRecords.value);
+            const filteredUsers = computed(() => users.value.filter(u => u.username.includes(userSearchQuery.value)));
+
+            const myBorrowCount = computed(() => borrowRecords.value.filter(r => r.userId===currentUser.value.id && r.status==='borrowed').length);
+            const myReservationCount = computed(() => borrowRecords.value.filter(r => r.userId===currentUser.value.id && r.status==='reserved').length);
+            const totalBookCount = computed(() => books.value.length);
+            const pendingReservations = computed(() => borrowRecords.value.filter(r => r.status==='reserved'));
 
             return {
-                currentUser, loginForm, loginError, currentPage, isSidebarOpen,
-                isRegistering, registerForm, registerError, isLoading, isModalOpen, modalType,
-                alertMessage, bookSearchQuery, userSearchQuery, returnBookId, returnUserId,
-                users, books, borrowRecords, currentBook, currentUserForm,
-                isVerificationStep, verificationCode, registerSuccess,
-                popularBooks, activeUsers, categoryStats, peakTimeStats, overdueUsers, stagnantBooks,
-                visiblePages, currentPageTitle, filteredBooks, filteredUsers, filteredRecords,
-                pendingReservations, myBorrowCount, myReservationCount, totalBookCount, totalUserCount,
-                pieChartStyle,isForgotPassword, resetForm,profileForm,
-                passwordForm,selectedFile, importResults,lowStockBooks,auditLogs,auditLogPage,
-                auditLogTotalPages,
-                fetchAuditLogs, handleUpdateProfile, handleChangePassword,
-                handleLogin, handleLogout, getRoleName, closeModal, clearBookSearch, isOverdue,
-                getBookById, getUserById, handleRegister, handleVerification, handleExportExcel,
-                openBookModal, handleSaveBook, handleDeleteBook, handleForgotPassword, handleResetPassword,
-                openUserModal, handleSaveUser, handleDeleteUser,isBookBorrowedByUser, isBookReservedByUser,
+                currentUser, loginForm, loginError, currentPage, isSidebarOpen, isLoading, toasts,
+                isRegistering, isVerificationStep, isForgotPassword, registerForm, verificationCode, registerError,
+                resetForm, profileForm, passwordForm,
+                books, users, borrowRecords, popularBooks, activeUsers, categoryStats, peakTimeStats, overdueUsers, stagnantBooks, lowStockBooks, auditLogs, auditLogPage, auditLogTotalPages,
+                isModalOpen, modalType, currentBook, currentUserForm, bookSearchQuery, userSearchQuery, returnBookId, returnUserId, selectedFile, importResults,
+                visiblePages, currentPageTitle, filteredBooks, filteredRecords, filteredUsers, myBorrowCount, myReservationCount, totalBookCount, pendingReservations,
+                pieChartStyle, chartColors,
+                handleLogin, handleRegister, handleVerification, handleForgotPassword, handleResetPassword, handleLogout,
                 handleBorrow, handleReserve, handleRenew, handleReturn, handleProcessReservation,
-                openImportModal, handleFileSelect, handleUploadBooks,handleExportAnalysis
+                handleSaveBook, handleDeleteBook, handleSaveUser, handleDeleteUser, handleUploadBooks, handleExportExcel, handleExportAnalysis,
+                handleUpdateProfile, handleChangePassword, fetchAuditLogs,
+                getRoleName, isOverdue, isBookBorrowedByUser, isBookReservedByUser, getBookById, getUserById,
+                closeModal, openBookModal, openUserModal, handleFileSelect, clearBookSearch, clearErrors
             };
         }
     }).mount('#app');
