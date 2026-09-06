@@ -1,0 +1,199 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+        :root { --ink: #0f172a; --muted: #64748b; --line: #e2e8f0; }
+        * { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+        [v-cloak] { display: none !important; }
+        html, body { height: 100%; margin: 0; }
+        #app { height: 100%; width: 100%; }
+        body {
+            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            color: var(--ink);
+            background-color: #eef1fb;
+            background-image:
+                radial-gradient(1100px 620px at 88% -8%, rgba(129, 140, 248, 0.18), transparent 60%),
+                radial-gradient(900px 560px at -12% 18%, rgba(192, 132, 252, 0.16), transparent 55%),
+                radial-gradient(820px 520px at 52% 112%, rgba(45, 212, 191, 0.14), transparent 60%);
+            background-attachment: fixed;
+        }
+        ::selection { background: rgba(99, 102, 241, 0.22); }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.35); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.55); }
+        ::-webkit-scrollbar-track { background: transparent; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes floaty { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -12px, 0); } }
+        .loader { width: 38px; height: 38px; border-radius: 9999px; border: 3px solid rgba(99, 102, 241, 0.18); border-top-color: #6366f1; animation: spin 0.7s linear infinite; box-shadow: 0 0 26px rgba(99, 102, 241, 0.3); }
+
+        /* ===== 鐜荤拑鎷熸€佸崱鐗?===== */
+        #app main .bg-white {
+            background-color: rgba(255, 255, 255, 0.76);
+            -webkit-backdrop-filter: blur(14px) saturate(160%);
+            backdrop-filter: blur(14px) saturate(160%);
+        }
+        .glass-card {
+            background-color: rgba(255, 255, 255, 0.72);
+            -webkit-backdrop-filter: blur(18px) saturate(170%);
+            backdrop-filter: blur(18px) saturate(170%);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 18px 46px -16px rgba(79, 70, 229, 0.22);
+        }
+        #app .glass-modal {
+            background-color: rgba(255, 255, 255, 0.9);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.95);
+            box-shadow: 0 30px 90px -20px rgba(23, 18, 75, 0.55);
+        }
+        /* ===== 娣辫壊娓愬彉渚ц竟鏍?===== */
+        #app aside.sidebar {
+            background:
+                radial-gradient(130% 70% at 15% -10%, rgba(129, 140, 248, 0.28), transparent 55%),
+                radial-gradient(130% 70% at 100% 110%, rgba(217, 70, 239, 0.16), transparent 55%),
+                linear-gradient(178deg, #0a0f26 0%, #141b3f 58%, #1d1246 100%);
+        }
+        .sidebar .nav-link {
+            position: relative;
+            display: flex;
+            align-items: center;
+            margin: 3px 10px;
+            padding: 11px 13px;
+            border-radius: 14px;
+            color: #94a3b8;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+        }
+        .sidebar .nav-link:hover { color: #fff; background: rgba(255, 255, 255, 0.07); }
+        .sidebar .nav-link.active {
+            color: #fff;
+            font-weight: 600;
+            background: linear-gradient(90deg, rgba(129, 140, 248, 0.34), rgba(168, 85, 247, 0.16));
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 10px 24px -12px rgba(129, 140, 248, 0.55);
+        }
+        .sidebar .nav-link.active::before {
+            content: '';
+            position: absolute;
+            left: -10px;
+            top: 24%;
+            bottom: 24%;
+            width: 4px;
+            border-radius: 0 4px 4px 0;
+            background: linear-gradient(180deg, #818cf8, #e879f9);
+            box-shadow: 0 0 12px rgba(168, 85, 247, 0.7);
+        }
+
+        /* ===== 椤舵爮鐜荤拑 ===== */
+        #app main > header {
+            background-color: rgba(255, 255, 255, 0.66);
+            -webkit-backdrop-filter: blur(18px) saturate(170%);
+            backdrop-filter: blur(18px) saturate(170%);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+        }
+
+        /* ===== 鍐呭鍖鸿緭鍏ユ帶浠?===== */
+        #app main input[type="text"],
+        #app main input[type="password"],
+        #app main input[type="number"],
+        #app main input[type="email"],
+        #app main select {
+            background-color: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            color: #0f172a;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        }
+        #app main input:focus,
+        #app main select:focus {
+            border-color: #818cf8;
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.16);
+            background-color: #fff;
+        }
+        #app main input::placeholder { color: #94a3b8; }
+
+        /* ===== 鐧诲綍椤佃緭鍏?===== */
+        .auth-input {
+            width: 100%;
+            padding: 11px 14px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+        .auth-input::placeholder { color: rgba(148, 163, 184, 0.75); }
+        .auth-input:focus { border-color: rgba(129, 140, 248, 0.75); background: rgba(255, 255, 255, 0.1); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18); }
+        .auth-input:-webkit-autofill,
+        .auth-input:-webkit-autofill:focus { -webkit-text-fill-color: #fff; caret-color: #fff; -webkit-box-shadow: 0 0 0 1000px #241d52 inset; }
+
+        /* ===== 娓愬彉涓绘寜閽?===== */
+        .btn-primary {
+            background-image: linear-gradient(120deg, #6366f1 0%, #8b5cf6 55%, #a855f7 100%);
+            color: #fff;
+            box-shadow: 0 10px 24px -8px rgba(139, 92, 246, 0.55);
+            transition: filter 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+        }
+        .btn-primary:hover { filter: brightness(1.08); box-shadow: 0 14px 30px -8px rgba(139, 92, 246, 0.7); }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-primary:disabled { opacity: 0.6; }
+
+        /* ===== 琛ㄦ牸 & 杩囨浮 ===== */
+        #app main table thead th { letter-spacing: 0.06em; }
+        #app main tbody tr { transition: background 0.15s ease; }
+
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.22s ease, transform 0.22s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(8px); }
+        .toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
+        .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(28px) scale(0.96); }
+        .toast-move { transition: transform 0.3s ease; }
+        /* ===== 闈涚传寮鸿皟鑹茬粺涓€ ===== */
+        #app main .text-blue-600 { color: #4f46e5; }
+        #app main .text-blue-500 { color: #6366f1; }
+        #app main .text-orange-600 { color: #d97706; }
+        #app main .bg-blue-600 { background-image: linear-gradient(120deg, #6366f1, #8b5cf6); background-color: #6d5af0; }
+        #app main .bg-blue-100 { background-color: #e0e7ff; }
+        #app main .bg-blue-50 { background-color: #eef2ff; }
+        #app main .hover\:bg-blue-500:hover { background-color: #6366f1 !important; }
+        #app main .hover\:text-blue-600:hover { color: #4f46e5 !important; }
+
+        /* 鏃х増涓绘寜閽?鈫?闈涚传娓愬彉 */
+        #app main .bg-gray-900,
+        #app .glass-modal .bg-gray-900 {
+            background-image: linear-gradient(120deg, #6366f1 0%, #8b5cf6 100%);
+            background-color: #6d5af0;
+        }
+        #app main .bg-gray-900:hover,
+        #app .glass-modal .bg-gray-900:hover { filter: brightness(1.08); }
+        #app main .rounded-lg { border-radius: 1.15rem; }
+
+        /* 鐜荤拑寮圭獥鍐呰緭鍏ユ帶浠?*/
+        #app .glass-modal input[type="text"],
+        #app .glass-modal input[type="password"],
+        #app .glass-modal input[type="number"],
+        #app .glass-modal input[type="email"],
+        #app .glass-modal select {
+            background-color: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            color: #0f172a;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease;
+        }
+        #app .glass-modal input:focus,
+        #app .glass-modal select:focus {
+            border-color: #818cf8;
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.16);
+        }
+        #app .glass-modal input::placeholder { color: #94a3b8; }
+        #app .glass-modal label { color: #475569; }
+
+        /* 绐勫睆缇庡寲锛氬皬瀛楀彿鎶楅敮榻?*/
+        @media (max-width: 640px) {
+            #app main { font-size: 13px; }
+        }

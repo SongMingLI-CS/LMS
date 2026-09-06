@@ -16,8 +16,8 @@
 | **后端 API** | ☕ Java 21 / Spring Boot 3.2+ | 基于 RESTful 架构的核心业务逻辑和高效 API 服务。 |
 | **安全与认证** | 🔒 Spring Security / JWT | 采用无状态 Token 鉴权机制，实现灵活的权限控制。 |
 | **数据持久化** | 💾 MySQL 8.0+ | 高性能数据存储，利用 JPA 自动建表。 |
-| **前端界面** | 💚 Vue 3 (CDN) / JS | 轻量级单文件组件，实现响应式和状态管理。 |
-| **样式与交互** | 🎨 Tailwind CSS / Chart.js | 实用主义样式框架，结合 Chart.js 实现数据可视化。 |
+| **前端界面** | 💚 Vue 3 (SFC) / Vite | 组件化拆分：8 页面视图 + 5 通用组件 + 集中 store，支持热更新与生产构建。 |
+| **样式与交互** | 🎨 Tailwind CSS (编译版) / CSS 图表 | 渐变玻璃拟态设计体系，原生 CSS 图表无重量级依赖，Vue/Axios/Tailwind 均已本地打包。 |
 
 ## 🌟 核心功能点概览
 
@@ -36,6 +36,7 @@
 * Java Development Kit (JDK) **21+**
 * MySQL **8.0+**
 * Maven 或 Gradle
+* （可选，仅前端独立开发时需要）Node.js **18+** 与 npm —— Maven 构建会自动通过 `frontend-maven-plugin` 下载 Node 并完成前端构建
 
 ### 2. 数据库初始化
 
@@ -60,13 +61,43 @@ java -jar target/lms-backend-0.0.1-SNAPSHOT.jar
 
 
 
-### 4. 前端访问
+### 4. 前端工程化（Vite + Vue 3 SFC）
 
+> 前端源码位于仓库根目录 `frontend/`，产物自动构建到 `src/main/resources/static/`，由 Spring Boot 直接托管。
 
+**开发模式（热更新）：**
+```bash
+cd frontend
+npm ci        # 首次拉取依赖
+npm run dev   # 启动 Vite 开发服务器 http://localhost:5173
+```
+> Vite 已配置代理：`/api`、`/login` 等请求会转发到本地 `http://localhost:8080`，开发时请保持后端运行。
 
-由于项目采用单文件 HTML 模式，您只需：
+**生产构建（自动集成到 Maven）：**
+```bash
+# 在项目根目录执行即可 —— frontend-maven-plugin 会自动 npm ci + npm run build
+mvn clean package -DskipTests
+java -jar target/lms-backend-0.0.1-SNAPSHOT.jar   # http://localhost:8080
+```
 
-- 将项目中的 `index.html` 文件直接用现代浏览器打开，即可访问前端界面。
+> - 如需跳过前端自动构建：`mvn package -Dfrontend.skip=true`
+> - 手动仅构建前端：`cd frontend && npm run build`
+> - `src/main/resources/static/` 为**构建产物目录**（已 gitignore），不要在源码仓库中手工修改它；改动一律提交 `frontend/` 下源码。
+
+**目录结构：**
+```
+frontend/
+├─ src/
+│  ├─ App.vue                 # 应用根组件（装配 + provide 中央 store）
+│  ├─ lms.js                  # 中央状态与全部业务逻辑（createLmsStore）
+│  ├─ style.css               # Tailwind 指令 + 全局玻璃拟态设计体系
+│  ├─ views/                  # DashboardView / AnalysisView / BooksView / RecordsView /
+│  │                          # AuditLogsView / BorrowManageView / ProfileView / UsersView
+│  └─ components/             # AuthShell / Sidebar / TopHeader / ToastStack / Modal
+└─ vite.config.js             # 输出 ../src/main/resources/static；dev 代理 :8080
+```
+
+> 依赖说明：Vue 3、Axios、Tailwind CSS 均已随 Vite 本地打包（不再依赖 CDN）；仅图标库 `ionicons` 仍以 Web Component 方式从 CDN 加载（后续可自托管 SVG 进一步离线化）。
 
 
 
