@@ -4,9 +4,12 @@ import com.npu.lms.dto.CategoryStatsDTO;
 import com.npu.lms.dto.StagnantBookDTO;
 import com.npu.lms.entity.Book;
 import com.npu.lms.service.BookService;
+import com.npu.lms.service.Marc21ExportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -38,6 +41,18 @@ public class BookController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "id,asc") String sort) {
         return bookService.searchBooks(q, category, page, size, sort);
+    }
+
+    // --- 【P2 行业互操作】MARC21 批量导出 (仅限管理员/超级管理员) ---
+    @GetMapping("/export/marc21")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SUPERADMIN')")
+    public ResponseEntity<byte[]> exportMarc21() {
+        List<Book> books = bookService.getAllBooks();
+        byte[] data = Marc21ExportService.exportBooks(books);
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Content-Disposition", "attachment; filename=lms_books.mrc");
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        return new ResponseEntity<>(data, headers, HttpStatus.OK);
     }
 
     // 图书入库 (新增)
