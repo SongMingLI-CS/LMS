@@ -106,7 +106,7 @@ public class RecordService {
 
             record.setStatus(STATUS_BORROWED);
             record.setBorrowTime(LocalDateTime.now());
-            record.setDueDate(LocalDate.now().plusDays(30));
+            record.setDueDate(LocalDate.now().plusDays(configService.getLoanPeriodDays()));
             record.setReservationExpiryDate(null);
             return recordRepository.save(record);
         }
@@ -130,7 +130,7 @@ public class RecordService {
         record.setUser(user);
         record.setBook(book);
         record.setBorrowTime(LocalDateTime.now());
-        record.setDueDate(LocalDate.now().plusDays(30));
+        record.setDueDate(LocalDate.now().plusDays(configService.getLoanPeriodDays()));
         record.setStatus(STATUS_BORROWED);
         return recordRepository.save(record);
     }
@@ -215,7 +215,7 @@ public class RecordService {
         }
 
         record.setRenewalCount(record.getRenewalCount() + 1);
-        record.setDueDate(record.getDueDate().plusDays(30));
+        record.setDueDate(record.getDueDate().plusDays(configService.getLoanPeriodDays()));
         return recordRepository.save(record);
     }
 
@@ -235,7 +235,7 @@ public class RecordService {
         bookRepository.save(book);
         reservation.setStatus(STATUS_BORROWED);
         reservation.setBorrowTime(LocalDateTime.now());
-        reservation.setDueDate(LocalDate.now().plusDays(30));
+        reservation.setDueDate(LocalDate.now().plusDays(configService.getLoanPeriodDays()));
         return recordRepository.save(reservation);
     }
 

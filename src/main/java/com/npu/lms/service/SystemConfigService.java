@@ -54,6 +54,10 @@ public class SystemConfigService {
         return Integer.parseInt(configCache.getOrDefault("RESERVATION_EXPIRY_DAYS", "3"));
     }
 
+    public int getLoanPeriodDays() {
+        return Integer.parseInt(configCache.getOrDefault("LOAN_PERIOD_DAYS", "30"));
+    }
+
     // --- 3. 提供给 Controller 使用的方法 ---
 
     /**
