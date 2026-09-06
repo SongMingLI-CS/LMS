@@ -3,6 +3,7 @@ package com.npu.lms.service;
 import com.npu.lms.entity.User;
 import com.npu.lms.repository.UserRepository;
 import com.npu.lms.security.RegisterRequest;
+import com.npu.lms.security.TokenService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +26,9 @@ public class UserService {
 
     @Autowired
     private EmailService emailService;
+
+    @Autowired
+    private TokenService tokenService;
 
     /**
      * 【V2 注册】创建未验证的用户并发送验证码
@@ -96,6 +100,13 @@ public class UserService {
      */
     public User findUserById(Long id) {
         return userRepository.findById(id).orElse(null);
+    }
+
+    /**
+     * 按用户名查找用户（供刷新令牌流程使用）
+     */
+    public User findByUsername(String username) {
+        return userRepository.findByUsername(username).orElse(null);
     }
 
     /**
@@ -173,6 +184,10 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(newPassword)); // 加密新密码
         user.setVerificationCode(null);
         user.setVerificationCodeExpiry(null);
+
+        // P0: 密码重置后使旧令牌全部失效
+        user.setTokenVersion(user.getTokenVersion() + 1);
+        tokenService.revokeAllRefreshTokensForUser(user.getUsername());
 
         userRepository.save(user);
     }

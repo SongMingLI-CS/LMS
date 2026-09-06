@@ -1,5 +1,6 @@
 package com.npu.lms.security;
 
+import com.npu.lms.entity.User;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +24,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private UserDetailsServiceImpl userDetailsService;
 
+    @Autowired
+    private TokenService tokenService;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -31,21 +35,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = getJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
+                String jti = tokenProvider.getJtiFromToken(jwt);
                 String username = tokenProvider.getUsernameFromToken(jwt);
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-                String authorities = userDetails.getAuthorities().toString();
-                // 在外部完成字符串拼接
-                String logMessage = "用户 " + username + " 加载的权限列表: " + authorities;
+                // P0: 拒绝已登出撤销的令牌
+                if (!tokenService.isAccessTokenRevoked(jti)) {
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-// 传入 info() 方法
-                logger.info(logMessage);
-                // 创建一个认证 token
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    // P0: 校验令牌版本，改密后的旧令牌一律失效
+                    long tokenVersion = tokenProvider.getTokenVersionFromToken(jwt);
+                    boolean versionOk = !(userDetails instanceof User)
+                            || ((User) userDetails).getTokenVersion() == tokenVersion;
 
-                // 放入 Spring Security 上下文
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    if (versionOk) {
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+                        // 放入 Spring Security 上下文
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
+                }
             }
         } catch (Exception ex) {
             logger.error("无法设置用户认证", ex);

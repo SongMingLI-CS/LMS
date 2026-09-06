@@ -41,6 +41,16 @@ public class User implements UserDetails {
     @Column(name = "verification_code_expiry")
     private LocalDateTime verificationCodeExpiry;
 
+    // --- (P0 安全: 登录失败锁定与令牌版本) ---
+    @Column(name = "failed_attempts", nullable = false)
+    private int failedAttempts = 0;
+
+    @Column(name = "locked_until")
+    private LocalDateTime lockedUntil;
+
+    @Column(name = "token_version", nullable = false)
+    private long tokenVersion = 0;
+
 
     // --- 【修复】Getters and Setters (已全部补全) ---
 
@@ -77,6 +87,15 @@ public class User implements UserDetails {
     public LocalDateTime getVerificationCodeExpiry() { return verificationCodeExpiry; }
     public void setVerificationCodeExpiry(LocalDateTime expiryTime) { this.verificationCodeExpiry = expiryTime; }
 
+    public int getFailedAttempts() { return failedAttempts; }
+    public void setFailedAttempts(int failedAttempts) { this.failedAttempts = failedAttempts; }
+
+    public LocalDateTime getLockedUntil() { return lockedUntil; }
+    public void setLockedUntil(LocalDateTime lockedUntil) { this.lockedUntil = lockedUntil; }
+
+    public long getTokenVersion() { return tokenVersion; }
+    public void setTokenVersion(long tokenVersion) { this.tokenVersion = tokenVersion; }
+
 
     // --- Spring Security UserDetails 接口实现 ---
 
@@ -103,7 +122,10 @@ public class User implements UserDetails {
     @Override
     public boolean isAccountNonExpired() { return true; }
     @Override
-    public boolean isAccountNonLocked() { return true; }
+    public boolean isAccountNonLocked() {
+        // P0: 失败锁定期间账户不可登录（Spring Security 会抛出 LockedException）
+        return lockedUntil == null || lockedUntil.isBefore(LocalDateTime.now());
+    }
     @Override
     public boolean isCredentialsNonExpired() { return true; }
     @Override

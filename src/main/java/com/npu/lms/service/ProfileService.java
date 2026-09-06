@@ -5,6 +5,7 @@ import com.npu.lms.dto.ProfileUpdateRequest;
 import com.npu.lms.dto.UserDTO;
 import com.npu.lms.entity.User;
 import com.npu.lms.repository.UserRepository;
+import com.npu.lms.security.TokenService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,6 +22,9 @@ public class ProfileService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private TokenService tokenService;
 
     /**
      * 辅助方法：从安全上下文中获取当前登录的用户实体
@@ -80,8 +84,10 @@ public class ProfileService {
             throw new BadCredentialsException("新密码不能为空");
         }
 
-        // 3. 更新密码
+        // 3. 更新密码，并使旧会话失效（P0：改密后旧令牌失效）
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
+        tokenService.revokeAllRefreshTokensForUser(user.getUsername());
     }
 }

@@ -80,6 +80,16 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- 依赖 3.1: Flyway 数据库版本化迁移 (P0: 替代 ddl-auto) -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-mysql</artifactId>
+		</dependency>
+
 		<!-- 依赖 4: Lombok (自动生成 getters, setters 等) -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>

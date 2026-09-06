@@ -30,7 +30,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/lms_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=lmsuser
       - SPRING_DATASOURCE_PASSWORD=lmsuserpassword
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update # 自动更新数据库表结构
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=none # 由 Flyway 版本化迁移管理表结构
       
     # 依赖关系: 确保在 mysql-db 启动后再启动此服务
     depends_on:
