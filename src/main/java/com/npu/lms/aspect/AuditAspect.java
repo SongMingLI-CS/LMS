@@ -49,6 +49,11 @@ public class AuditAspect {
     @Pointcut("execution(* com.npu.lms.service.UserService.deleteUser(..))")
     public void deleteUserPointcut() {}
 
+    // 拦截数据导出（敏感操作）
+    @Pointcut("execution(* com.npu.lms.controller.RecordController.exportRecordsExcel(..)) || " +
+              "execution(* com.npu.lms.controller.AnalysisController.export*(..))")
+    public void exportPointcut() {}
+
     // --- 2. 定义通知 (Advices) ---
 
     // 在借书成功后记录
@@ -98,6 +103,12 @@ public class AuditAspect {
         // 从参数中获取 ID
         Long userId = (Long) joinPoint.getArgs()[0];
         log(joinPoint, "DELETE_USER", "删除用户 ID: " + userId);
+    }
+
+    // 在数据导出成功后记录
+    @AfterReturning(pointcut = "exportPointcut()")
+    public void logExport(JoinPoint joinPoint) {
+        log(joinPoint, "EXPORT_DATA", "数据导出: " + joinPoint.getSignature().getName());
     }
 
 

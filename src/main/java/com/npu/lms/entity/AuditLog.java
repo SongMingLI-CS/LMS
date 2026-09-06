@@ -11,19 +11,19 @@ public class AuditLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "username", nullable = false)
+    @Column(name = "username", nullable = false, updatable = false)
     private String username; // 操作人
 
-    @Column(name = "action", nullable = false)
+    @Column(name = "action", nullable = false, updatable = false)
     private String action; // 操作类型 (例如: "BORROW_BOOK")
 
-    @Column(name = "details", length = 1024)
+    @Column(name = "details", length = 1024, updatable = false)
     private String details; // 详细信息 (例如: "Book ID: 15, User ID: 4")
 
-    @Column(name = "ip_address")
+    @Column(name = "ip_address", updatable = false)
     private String ipAddress; // IP 地址
 
-    @Column(name = "timestamp", nullable = false)
+    @Column(name = "timestamp", nullable = false, updatable = false)
     private LocalDateTime timestamp; // 操作时间
 
     // --- 构造函数 ---

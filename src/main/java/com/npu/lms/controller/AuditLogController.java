@@ -30,8 +30,12 @@ public class AuditLogController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
+        // P1: 分页上限，防止大响应
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        int safePage = Math.max(page, 0);
+
         // 按时间倒序排序
-        Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by("timestamp").descending());
         Page<AuditLog> logPage = auditLogRepository.findAll(pageable);
         return ResponseEntity.ok(logPage);
     }

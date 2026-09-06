@@ -11,6 +11,7 @@ import com.npu.lms.security.LoginRequest;
 import com.npu.lms.security.RateLimiter;
 import com.npu.lms.security.RegisterRequest;
 import com.npu.lms.security.TokenService;
+import com.npu.lms.service.AuditLogService;
 import com.npu.lms.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +51,9 @@ public class AuthController {
 
     @Autowired
     private TokenService tokenService;
+
+    @Autowired
+    private AuditLogService auditLogService;
 
     // P0: 双维度限流阈值（防暴力破解 / 邮件轰炸）
     private static final long MINUTE = 60_000L;
@@ -93,6 +97,9 @@ public class AuthController {
 
             loginAttemptService.onLoginSuccess(username);
 
+            // P1: 审计登录成功
+            auditLogService.logAction(username, "LOGIN_SUCCESS", "登录成功", ip);
+
             // P0: 签发短期访问令牌 + 刷新令牌
             String accessToken = tokenProvider.generateAccessToken(user);
             String refreshToken = tokenService.issueRefreshToken(user);
@@ -101,9 +108,11 @@ public class AuthController {
 
         } catch (BadCredentialsException e) {
             loginAttemptService.onLoginFailed(username);
+            auditLogService.logAction(username, "LOGIN_FAILED", "登录失败: 密码错误", ip);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "账号或密码错误"));
         } catch (LockedException e) {
+            auditLogService.logAction(username, "LOGIN_LOCKED", "登录被拒绝: 账户已锁定", ip);
             return ResponseEntity.status(HttpStatus.LOCKED)
                     .body(Map.of("message", "账户已锁定，请稍后再试"));
         } catch (DisabledException e) {
@@ -194,6 +203,7 @@ public class AuthController {
 
         try {
             userService.performPasswordReset(resetRequest.getEmail(), resetRequest.getCode(), resetRequest.getNewPassword());
+            auditLogService.logAction(email, "PASSWORD_RESET", "密码重置成功", ip);
             return ResponseEntity.ok(Map.of("message", "密码重置成功！您现在可以使用新密码登录了。"));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
