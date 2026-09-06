@@ -43,6 +43,9 @@ public class BookService {
     private BookRepository bookRepository;
     @Autowired // 【新增】
     private BookBatchRepository bookBatchRepository;
+
+    @Autowired
+    private BookItemService bookItemService;
     private static final Logger log = LoggerFactory.getLogger(BookService.class); // 【新增】
     // --- (基础 CRUD 方法) ---
 
@@ -118,6 +121,9 @@ public class BookService {
 
             bookBatchRepository.save(batch);
             log.info("【批次】已为新书 (ID: {}) 创建了初始批次，数量: {}", savedBook.getId(), savedBook.getStock());
+
+            // P1 馆藏建模：为新书生成馆藏单册
+            bookItemService.generateItemsForBook(savedBook);
         }
 
         return savedBook; // 3. 返回保存的图书
