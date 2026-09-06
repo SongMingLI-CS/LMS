@@ -106,6 +106,7 @@ public class SecurityConfig {
                         .requestMatchers("/register/verify", "/forgot-password", "/reset-password").permitAll()
                         .requestMatchers("/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/books").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/books/search").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // --- (***关键修改***) ---

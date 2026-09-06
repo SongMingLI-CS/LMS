@@ -7,7 +7,10 @@ import com.npu.lms.entity.BookBatch;
 import com.npu.lms.repository.BookBatchRepository;
 import com.npu.lms.repository.BookRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.apache.poi.ss.usermodel.Cell;
@@ -26,6 +29,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Set;
 import org.apache.poi.ss.usermodel.CellType; // 【新增】
 
 import java.time.LocalDateTime;
@@ -50,6 +54,50 @@ public class BookService {
     // 用于图书管理页面
     public List<Book> getAllBooks() {
         return bookRepository.findAll();
+    }
+
+    // --- 【P1 检索能力】分页 + 搜索 + 排序 + 分类分面 ---
+
+    /** 分页大小上限，防止大响应拖垮接口 */
+    public static final int MAX_PAGE_SIZE = 100;
+
+    /** 允许排序的字段白名单，防止任意属性排序注入 */
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "title", "author", "isbn", "stock", "available", "category", "price", "publicationDate");
+
+    /**
+     * 分页检索图书：q 匹配书名/作者/ISBN，category 精确过滤，并强制分页上限。
+     */
+    public Page<Book> searchBooks(String q, String category, int page, int size, String sort) {
+        Pageable pageable = buildPageable(page, size, sort);
+        return bookRepository.searchBooks(trimToNull(q), trimToNull(category), pageable);
+    }
+
+    Pageable buildPageable(int page, int size, String sort) {
+        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int safePage = Math.max(page, 0);
+        return PageRequest.of(safePage, safeSize, parseSort(sort));
+    }
+
+    Sort parseSort(String sort) {
+        if (sort == null || sort.isBlank()) {
+            return Sort.by(Sort.Direction.ASC, "id");
+        }
+        String[] parts = sort.split(",");
+        String field = parts[0].trim();
+        if (!SORTABLE_FIELDS.contains(field)) {
+            field = "id";
+        }
+        Sort.Direction direction = (parts.length > 1 && "desc".equalsIgnoreCase(parts[1].trim()))
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+        return Sort.by(direction, field);
+    }
+
+    private String trimToNull(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        return s.trim();
     }
 
     // 用于图书入库

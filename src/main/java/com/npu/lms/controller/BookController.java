@@ -5,6 +5,7 @@ import com.npu.lms.dto.StagnantBookDTO;
 import com.npu.lms.entity.Book;
 import com.npu.lms.service.BookService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,6 +27,17 @@ public class BookController {
     @GetMapping
     public List<Book> getAllBooks() {
         return bookService.getAllBooks();
+    }
+
+    // --- 【P1 检索能力】分页 + 搜索 + 排序 + 分类分面 ---
+    @GetMapping("/search")
+    public Page<Book> searchBooks(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String category,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "id,asc") String sort) {
+        return bookService.searchBooks(q, category, page, size, sort);
     }
 
     // 图书入库 (新增)

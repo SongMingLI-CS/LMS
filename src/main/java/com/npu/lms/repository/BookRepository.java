@@ -3,6 +3,7 @@ package com.npu.lms.repository;
 import com.npu.lms.dto.CategoryStatsDTO;
 import com.npu.lms.dto.StagnantBookDTO; // 1. 引入新 DTO
 import com.npu.lms.entity.Book;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable; // 引入 Pageable
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -18,6 +19,14 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     Optional<Book> findByIsbn(String isbn);
     // 【新增】查找库存低于阈值的图书
     List<Book> findByAvailableLessThan(int threshold);
+
+    // 【新增 P1】分页 + 搜索 + 分类分面（q 匹配书名/作者/ISBN，category 精确过滤）
+    @Query("SELECT b FROM Book b WHERE " +
+            "(:q IS NULL OR :q = '' OR LOWER(b.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
+            "OR LOWER(b.author) LIKE LOWER(CONCAT('%', :q, '%')) " +
+            "OR LOWER(b.isbn) LIKE LOWER(CONCAT('%', :q, '%'))) " +
+            "AND (:category IS NULL OR :category = '' OR b.category = :category)")
+    Page<Book> searchBooks(@Param("q") String q, @Param("category") String category, Pageable pageable);
     // (图书分类统计查询保持不变)
     @Query("SELECT NEW com.npu.lms.dto.CategoryStatsDTO(b.category, COUNT(b.id)) " +
             "FROM Book b WHERE b.category IS NOT NULL " +
