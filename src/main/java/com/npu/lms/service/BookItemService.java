@@ -58,6 +58,28 @@ public class BookItemService {
     }
 
     /**
+     * 追加单册：为已有书目增加 quantity 条可借单册（条码续接现有数量，避免冲突）。
+     */
+    @Transactional
+    public List<BookItem> addItemsToBook(Book book, int quantity) {
+        Branch branch = getDefaultBranch();
+        long existing = bookItemRepository.countByBookId(book.getId());
+
+        List<BookItem> items = new ArrayList<>();
+        for (int i = 1; i <= quantity; i++) {
+            BookItem item = new BookItem();
+            item.setBarcode(generateBarcode(book.getId(), existing + i));
+            item.setBook(book);
+            item.setBranch(branch);
+            item.setShelfNo(DEFAULT_SHELF_NO);
+            item.setStatus(BookItem.STATUS_AVAILABLE);
+            item.setAcquiredAt(LocalDateTime.now());
+            items.add(item);
+        }
+        return bookItemRepository.saveAll(items);
+    }
+
+    /**
      * 回填存量：为尚无单册的书目生成单册（幂等，可重复调用）。
      *
      * @return 本次新生成的单册数量
@@ -95,7 +117,7 @@ public class BookItemService {
         });
     }
 
-    private String generateBarcode(Long bookId, int seq) {
+    private String generateBarcode(Long bookId, long seq) {
         return String.format("BC%06d-%03d", bookId, seq);
     }
 }
