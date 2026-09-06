@@ -31,6 +31,7 @@
     <style>
         :root { --ink: #0f172a; --muted: #64748b; --line: #e2e8f0; }
         * { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+        [v-cloak] { display: none !important; }
         html, body { height: 100%; margin: 0; }
         body {
             font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
@@ -226,7 +227,7 @@
 </head>
 <body class="h-screen overflow-hidden">
 
-<div id="app" class="flex h-full">
+<div id="app" v-cloak class="flex h-full">
 
     <!-- 环境光晕层 -->
     <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
@@ -400,7 +401,7 @@
                     </div>
                 </div>
                 <button @click="handleLogout" :class="['mt-3 w-full flex items-center py-2 rounded-xl text-slate-400 hover:text-rose-300 hover:bg-white/5 transition-colors', isSidebarOpen ? 'justify-start pl-4' : 'justify-center']">
-                    <ion-icon name="log-out-outline" class="text-lg mr-2"></ion-icon>
+                    <ion-icon name="log-out-outline" :class="['text-lg', isSidebarOpen ? 'mr-2' : '']"></ion-icon>
                     <span v-if="isSidebarOpen" class="text-xs">退出登录</span>
                 </button>
             </div>
@@ -522,48 +523,69 @@
 
                         <section v-if="currentPage === 'analysis'">
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-900">热门图书 Top 5</h3><button @click="handleExportAnalysis('popular-books','pop.xlsx')" class="text-gray-400 hover:text-blue-600"><ion-icon name="download-outline"></ion-icon></button></div>
-                                    <ul class="space-y-3">
-                                        <li v-if="popularBooks.length===0" class="text-gray-400 text-sm text-center py-4">暂无数据</li>
+                                <div class="glass-card rounded-2xl p-6">
+                                    <div class="flex justify-between items-center mb-5">
+                                        <h3 class="font-bold text-slate-900 flex items-center gap-2"><span class="w-1 h-4 rounded bg-gradient-to-b from-indigo-500 to-fuchsia-500 inline-block"></span>热门图书 Top 5</h3>
+                                        <button @click="handleExportAnalysis('popular-books','pop.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button>
+                                    </div>
+                                    <ul class="space-y-4">
+                                        <li v-if="popularBooks.length===0" class="text-slate-400 text-sm text-center py-6">暂无数据</li>
                                         <li v-for="(book, idx) in popularBooks" :key="idx" class="text-sm">
-                                            <div class="flex justify-between mb-1"><span class="text-gray-700 font-medium truncate w-3/4">{{ idx+1 }}. {{ book.title }}</span><span class="text-gray-500">{{ book.borrowCount }} 次</span></div>
-                                            <div class="w-full bg-gray-100 rounded-full h-1.5"><div class="bg-blue-600 h-1.5 rounded-full" :style="{width: (book.borrowCount / (popularBooks[0]?.borrowCount || 1) * 100) + '%'}"></div></div>
+                                            <div class="flex items-center justify-between mb-1.5 gap-3">
+                                                <span class="flex items-center gap-2.5 min-w-0">
+                                                    <span class="w-5 h-5 rounded-md text-[11px] font-bold flex items-center justify-center flex-shrink-0" :class="idx===0 ? 'bg-gradient-to-br from-amber-300 to-orange-400 text-white shadow-sm' : 'bg-indigo-50 text-indigo-600'">{{ idx+1 }}</span>
+                                                    <span class="text-slate-700 font-medium truncate">{{ book.title }}</span>
+                                                </span>
+                                                <span class="text-slate-500 font-mono text-xs flex-shrink-0">{{ book.borrowCount }} 次</span>
+                                            </div>
+                                            <div class="w-full h-2 bg-slate-200/70 rounded-full overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500" :style="{width: (book.borrowCount / (popularBooks[0]?.borrowCount || 1) * 100) + '%'}"></div></div>
                                         </li>
                                     </ul>
                                 </div>
 
-                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-900">图书分类分布</h3><button @click="handleExportAnalysis('categories','cats.xlsx')" class="text-gray-400 hover:text-blue-600"><ion-icon name="download-outline"></ion-icon></button></div>
+                                <div class="glass-card rounded-2xl p-6">
+                                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-slate-900 flex items-center gap-2"><span class="w-1 h-4 rounded bg-gradient-to-b from-violet-500 to-fuchsia-500 inline-block"></span>图书分类分布</h3><button @click="handleExportAnalysis('categories','cats.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button></div>
                                     <div class="flex flex-col items-center">
-                                        <div class="w-40 h-40 rounded-full border-4 border-white shadow-inner mb-4" :style="{ background: pieChartStyle }"></div>
-                                        <div class="flex flex-wrap justify-center gap-2 text-xs text-gray-600">
-                                            <div v-if="categoryStats.length===0" class="text-gray-400">暂无数据</div>
-                                            <span v-for="(cat, i) in categoryStats" :key="i" class="flex items-center"><span class="w-2 h-2 rounded-full mr-1" :style="{background: chartColors[i%chartColors.length]}"></span> {{ cat.category }} ({{ cat.count }})</span>
+                                        <div class="w-40 h-40 rounded-full border-4 border-white shadow-[0_12px_32px_-12px_rgba(99,102,241,0.45)] mb-5" :style="{ background: pieChartStyle }"></div>
+                                        <div class="flex flex-wrap justify-center gap-2">
+                                            <div v-if="categoryStats.length===0" class="text-slate-400 text-xs py-2">暂无数据</div>
+                                            <span v-for="(cat, i) in categoryStats" :key="i" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/60 border border-slate-200/70 text-xs text-slate-600"><span class="w-2 h-2 rounded-full" :style="{background: chartColors[i%chartColors.length]}"></span>{{ cat.category }} · {{ cat.count }} 册</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm lg:col-span-2">
-                                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-900">借阅高峰时段</h3><button @click="handleExportAnalysis('peak-times','peak.xlsx')" class="text-gray-400 hover:text-blue-600"><ion-icon name="download-outline"></ion-icon></button></div>
-                                    <div class="h-48 flex items-end justify-between space-x-1 pt-6">
-                                        <div v-if="peakTimeStats.length===0" class="w-full text-center text-gray-400 text-sm">暂无数据</div>
-                                        <div v-for="slot in peakTimeStats" :key="slot.hourSlot" class="flex-1 flex flex-col items-center group">
-                                            <div class="w-full bg-blue-100 rounded-t hover:bg-blue-500 transition-colors relative" :style="{ height: (slot.count * 10 + 5) + 'px', maxHeight: '100%' }">
-                                                <span class="absolute -top-5 left-1/2 -translate-x-1/2 text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">{{ slot.count }}</span>
+                                <div class="glass-card rounded-2xl p-6 lg:col-span-2">
+                                    <div class="flex justify-between items-center mb-6"><h3 class="font-bold text-slate-900 flex items-center gap-2"><span class="w-1 h-4 rounded bg-gradient-to-b from-sky-400 to-indigo-500 inline-block"></span>借阅高峰时段</h3><button @click="handleExportAnalysis('peak-times','peak.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button></div>
+                                    <div class="h-52 flex items-end justify-between gap-2 pt-8">
+                                        <div v-if="peakTimeStats.length===0" class="w-full text-center text-slate-400 text-sm">暂无数据</div>
+                                        <div v-for="slot in peakTimeStats" :key="slot.hourSlot" class="flex-1 flex flex-col items-center group h-full">
+                                            <div class="relative mt-auto w-full max-w-[26px] rounded-t-lg bg-gradient-to-t from-indigo-500 via-violet-500 to-fuchsia-400 opacity-75 group-hover:opacity-100 transition-opacity flex-shrink-0" :style="{ height: (slot.count * 10 + 5) + 'px', maxHeight: '100%' }">
+                                                <span class="absolute -top-5 left-1/2 -translate-x-1/2 text-[11px] font-bold text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{{ slot.count }}</span>
                                             </div>
-                                            <span class="text-[10px] text-gray-400 mt-1">{{ slot.hourSlot }}</span>
+                                            <span class="text-[10px] text-slate-400 mt-2">{{ slot.hourSlot }}</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                                    <div class="flex justify-between items-center mb-3"><h3 class="font-bold text-gray-900">滞销图书 (Top 10)</h3><button @click="handleExportAnalysis('stagnant-books','stagnant.xlsx')" class="text-gray-400 hover:text-blue-600"><ion-icon name="download-outline"></ion-icon></button></div>
-                                    <ul class="divide-y divide-gray-100 text-sm"><li v-for="(b,i) in stagnantBooks" :key="i" class="py-2 flex justify-between"><span class="text-gray-600 truncate w-2/3">{{ i+1 }}. {{ b.title }}</span><span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">{{ b.category }}</span></li><li v-if="stagnantBooks.length===0" class="py-4 text-center text-gray-400">无数据</li></ul>
+                                <div class="glass-card rounded-2xl p-6">
+                                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-slate-900 flex items-center gap-2"><span class="w-1 h-4 rounded bg-gradient-to-b from-amber-400 to-rose-400 inline-block"></span>滞销图书 Top 10</h3><button @click="handleExportAnalysis('stagnant-books','stagnant.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button></div>
+                                    <ul class="text-sm">
+                                        <li v-for="(b,i) in stagnantBooks" :key="i" class="py-2.5 flex justify-between items-center gap-2 border-b border-slate-100 last:border-0">
+                                            <span class="flex items-center gap-2.5 min-w-0"><span class="w-5 h-5 rounded-md bg-slate-100 text-slate-500 text-[11px] font-bold flex items-center justify-center flex-shrink-0">{{ i+1 }}</span><span class="text-slate-600 truncate">{{ b.title }}</span></span>
+                                            <span class="text-[11px] text-slate-400 bg-white/70 border border-slate-200/70 px-2.5 py-0.5 rounded-full whitespace-nowrap">{{ b.category }}</span>
+                                        </li>
+                                        <li v-if="stagnantBooks.length===0" class="py-6 text-center text-slate-400">暂无数据</li>
+                                    </ul>
                                 </div>
-                                <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                                    <div class="flex justify-between items-center mb-3"><h3 class="font-bold text-gray-900">活跃读者 Top 5</h3><button @click="handleExportAnalysis('active-users','active.xlsx')" class="text-gray-400 hover:text-blue-600"><ion-icon name="download-outline"></ion-icon></button></div>
-                                    <ul class="divide-y divide-gray-100 text-sm"><li v-for="(u,i) in activeUsers" :key="i" class="py-2 flex justify-between"><span class="text-gray-700 font-medium">{{ i+1 }}. {{ u.name }}</span><span class="text-blue-600 font-bold">{{ u.borrowCount }} 次</span></li><li v-if="activeUsers.length===0" class="py-4 text-center text-gray-400">无数据</li></ul>
+                                <div class="glass-card rounded-2xl p-6">
+                                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-slate-900 flex items-center gap-2"><span class="w-1 h-4 rounded bg-gradient-to-b from-emerald-400 to-teal-500 inline-block"></span>活跃读者 Top 5</h3><button @click="handleExportAnalysis('active-users','active.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button></div>
+                                    <ul class="text-sm">
+                                        <li v-for="(u,i) in activeUsers" :key="i" class="py-2.5 flex justify-between items-center gap-2 border-b border-slate-100 last:border-0">
+                                            <span class="flex items-center gap-2.5 min-w-0"><span class="w-5 h-5 rounded-md bg-gradient-to-br from-indigo-400 to-fuchsia-500 text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0">{{ i+1 }}</span><span class="text-slate-700 font-medium truncate">{{ u.name }}</span></span>
+                                            <span class="text-indigo-600 font-bold font-mono text-xs flex-shrink-0">{{ u.borrowCount }} 次</span>
+                                        </li>
+                                        <li v-if="activeUsers.length===0" class="py-6 text-center text-slate-400">暂无数据</li>
+                                    </ul>
                                 </div>
                             </div>
                         </section>
@@ -629,7 +651,7 @@
                                         <td class="px-6 py-3.5 font-semibold text-slate-800">{{ r.bookTitle }}</td>
                                         <td class="px-6 py-3.5 text-slate-500">{{ r.borrowDate }}</td>
                                         <td class="px-6 py-3.5 text-slate-500">{{ r.dueDate }}</td>
-                                        <td class="px-6 py-3.5"><span :class="['px-2.5 py-1 rounded-full text-xs font-semibold', isOverdue(r.dueDate) && r.status==='borrowed' ? 'bg-rose-50 text-rose-500' : 'bg-slate-100 text-slate-600']">{{ r.status }}</span></td>
+                                        <td class="px-6 py-3.5"><span :class="['px-2.5 py-1 rounded-full text-xs font-semibold', r.status==='borrowed' ? (isOverdue(r.dueDate) ? 'bg-rose-50 text-rose-500' : 'bg-indigo-50 text-indigo-600') : r.status==='returned' ? 'bg-emerald-50 text-emerald-600' : r.status==='reserved' ? 'bg-amber-50 text-amber-600' : r.status==='awaiting_pickup' ? 'bg-violet-50 text-violet-600' : 'bg-slate-100 text-slate-600']">{{ statusLabel(r.status) }}</span></td>
                                         <td class="px-6 py-3.5 text-right"><button v-if="r.status==='borrowed' && currentUser.role==='user'" @click="handleRenew(r)" class="px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 text-xs font-semibold hover:bg-indigo-100 transition-colors">续借</button></td>
                                     </tr>
                                     <tr v-if="filteredRecords.length===0"><td colspan="5" class="px-6 py-14 text-center text-slate-400 text-sm">暂无借阅记录</td></tr>
@@ -734,35 +756,116 @@
                 <button @click="closeModal" class="absolute top-4 right-4 w-8 h-8 inline-flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-500 transition-colors text-lg"><ion-icon name="close"></ion-icon></button>
 
                 <div v-if="modalType === 'book'">
-                    <h3 class="text-xl font-bold mb-4">{{ currentBook.id ? '编辑图书' : '入库' }}</h3>
-                    <form @submit.prevent="handleSaveBook" class="space-y-3">
-                        <div class="grid grid-cols-2 gap-3"><div class="col-span-2"><label class="text-xs font-bold text-gray-500">书名</label><input v-model="currentBook.title" class="w-full px-3 py-2 border rounded" required></div><div><label class="text-xs font-bold text-gray-500">作者</label><input v-model="currentBook.author" class="w-full px-3 py-2 border rounded" required></div><div><label class="text-xs font-bold text-gray-500">ISBN</label><input v-model="currentBook.isbn" class="w-full px-3 py-2 border rounded" required></div><div><label class="text-xs font-bold text-gray-500">库存</label><input type="number" v-model.number="currentBook.stock" class="w-full px-3 py-2 border rounded" :disabled="!!currentBook.id"></div><div><label class="text-xs font-bold text-gray-500">可借</label><input type="number" v-model.number="currentBook.available" class="w-full px-3 py-2 border rounded" :disabled="!!currentBook.id"></div><div class="col-span-2"><label class="text-xs font-bold text-gray-500">封面</label><input v-model="currentBook.cover" class="w-full px-3 py-2 border rounded"></div></div>
-                        <button class="w-full mt-4 py-2 bg-gray-900 text-white rounded hover:bg-black">保存</button>
+                    <div class="flex items-center gap-3 mb-5">
+                        <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white flex items-center justify-center text-xl shadow-glow flex-shrink-0"><ion-icon :name="currentBook.id ? 'create-outline' : 'add-circle-outline'"></ion-icon></span>
+                        <div>
+                            <h3 class="text-lg font-extrabold text-slate-900">{{ currentBook.id ? '编辑图书' : '新书入库' }}</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">{{ currentBook.id ? '更新馆藏图书基本信息' : '录入新书，系统将自动生成馆藏单册' }}</p>
+                        </div>
+                    </div>
+                    <form @submit.prevent="handleSaveBook" class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">书名 <span class="text-rose-400">*</span></label>
+                                <input v-model="currentBook.title" placeholder="输入图书完整名称" class="w-full px-3.5 py-2.5 border rounded-xl" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">作者 <span class="text-rose-400">*</span></label>
+                                <input v-model="currentBook.author" placeholder="作者姓名" class="w-full px-3.5 py-2.5 border rounded-xl" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">ISBN <span class="text-rose-400">*</span></label>
+                                <input v-model="currentBook.isbn" placeholder="如 978-7-…" class="w-full px-3.5 py-2.5 border rounded-xl font-mono" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">库存</label>
+                                <input type="number" v-model.number="currentBook.stock" min="0" class="w-full px-3.5 py-2.5 border rounded-xl" :disabled="!!currentBook.id">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">可借数量</label>
+                                <input type="number" v-model.number="currentBook.available" min="0" class="w-full px-3.5 py-2.5 border rounded-xl" :disabled="!!currentBook.id">
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">封面图片 URL</label>
+                                <input v-model="currentBook.cover" placeholder="https://…（选填）" class="w-full px-3.5 py-2.5 border rounded-xl">
+                            </div>
+                        </div>
+                        <button class="btn-primary w-full mt-2 py-3 rounded-xl font-semibold flex items-center justify-center gap-2"><ion-icon name="checkmark-circle-outline"></ion-icon>保存</button>
                     </form>
                 </div>
 
                 <div v-if="modalType === 'user'">
-                    <h3 class="text-xl font-bold mb-4">用户信息</h3>
-                    <form @submit.prevent="handleSaveUser" class="space-y-3">
-                        <input v-model="currentUserForm.username" placeholder="用户名" class="w-full px-3 py-2 border rounded" required>
-                        <input v-model="currentUserForm.name" placeholder="姓名" class="w-full px-3 py-2 border rounded" required>
-                        <input v-model="currentUserForm.email" placeholder="邮箱" class="w-full px-3 py-2 border rounded" required>
-                        <input v-model="currentUserForm.password" placeholder="密码 (留空不改)" class="w-full px-3 py-2 border rounded">
-                        <select v-model="currentUserForm.role" class="w-full px-3 py-2 border rounded bg-white"><option value="user">用户</option><option value="admin">管理员</option><option value="superadmin">超管</option></select>
-                        <button class="w-full mt-4 py-2 bg-gray-900 text-white rounded">保存</button>
+                    <div class="flex items-center gap-3 mb-5">
+                        <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex items-center justify-center text-xl shadow-glow flex-shrink-0"><ion-icon :name="currentUserForm.id ? 'create-outline' : 'person-add-outline'"></ion-icon></span>
+                        <div>
+                            <h3 class="text-lg font-extrabold text-slate-900">{{ currentUserForm.id ? '编辑用户' : '添加用户' }}</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">管理用户账号与系统角色</p>
+                        </div>
+                    </div>
+                    <form @submit.prevent="handleSaveUser" class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">用户名 <span class="text-rose-400">*</span></label>
+                                <input v-model="currentUserForm.username" placeholder="登录账号" class="w-full px-3.5 py-2.5 border rounded-xl" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">姓名 <span class="text-rose-400">*</span></label>
+                                <input v-model="currentUserForm.name" placeholder="真实姓名" class="w-full px-3.5 py-2.5 border rounded-xl" required>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">邮箱 <span class="text-rose-400">*</span></label>
+                                <input type="email" v-model="currentUserForm.email" placeholder="user@example.com" class="w-full px-3.5 py-2.5 border rounded-xl" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">初始密码</label>
+                                <input type="password" v-model="currentUserForm.password" placeholder="留空则不修改" class="w-full px-3.5 py-2.5 border rounded-xl">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">角色</label>
+                                <select v-model="currentUserForm.role" class="w-full px-3.5 py-2.5 border rounded-xl bg-white"><option value="user">用户</option><option value="admin">管理员</option><option value="superadmin">超级管理员</option></select>
+                            </div>
+                        </div>
+                        <button class="btn-primary w-full mt-2 py-3 rounded-xl font-semibold flex items-center justify-center gap-2"><ion-icon name="checkmark-circle-outline"></ion-icon>保存</button>
                     </form>
                 </div>
 
                 <div v-if="modalType === 'importBooks'">
-                    <h3 class="text-xl font-bold mb-4">批量导入</h3>
-                    <div v-if="importResults.success || importResults.failed" class="mb-4 p-3 bg-gray-50 rounded text-sm"><span class="text-green-600 font-bold">成功: {{ importResults.success }}</span> <span class="text-red-600 font-bold ml-2">失败: {{ importResults.failed }}</span><ul class="mt-2 list-disc pl-4 text-red-500 text-xs"><li v-for="e in importResults.errors">{{ e }}</li></ul></div>
-                    <input type="file" @change="handleFileSelect" accept=".xlsx" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
-                    <button @click="handleUploadBooks" :disabled="!selectedFile" class="w-full mt-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50">上传</button>
+                    <div class="flex items-center gap-3 mb-5">
+                        <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-indigo-500 text-white flex items-center justify-center text-xl shadow-glow flex-shrink-0"><ion-icon name="cloud-upload-outline"></ion-icon></span>
+                        <div>
+                            <h3 class="text-lg font-extrabold text-slate-900">批量导入</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">上传 .xlsx 模板批量新增图书</p>
+                        </div>
+                    </div>
+                    <div v-if="importResults.success || importResults.failed" class="mb-4 p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                        <div class="flex items-center gap-3">
+                            <span class="inline-flex items-center gap-1 text-emerald-600 font-bold"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>成功 {{ importResults.success }}</span>
+                            <span class="inline-flex items-center gap-1 text-rose-500 font-bold"><span class="w-2 h-2 rounded-full bg-rose-500"></span>失败 {{ importResults.failed }}</span>
+                        </div>
+                        <ul v-if="importResults.errors.length" class="mt-2.5 space-y-1 list-disc pl-4 text-rose-500 text-xs"><li v-for="e in importResults.errors">{{ e }}</li></ul>
+                    </div>
+                    <div class="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 p-6 text-center hover:border-indigo-300 transition-colors">
+                        <ion-icon name="document-attach-outline" class="text-3xl text-slate-300 mb-2"></ion-icon>
+                        <input type="file" @change="handleFileSelect" accept=".xlsx" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"/>
+                        <p class="text-[11px] text-slate-400 mt-2">支持 .xlsx 格式的图书模板文件</p>
+                    </div>
+                    <button @click="handleUploadBooks" :disabled="!selectedFile" class="btn-primary w-full mt-4 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"><ion-icon name="cloud-upload-outline"></ion-icon>开始上传</button>
                 </div>
 
                 <div v-if="modalType === 'password'">
-                    <h3 class="text-xl font-bold mb-4">修改密码</h3>
-                    <form @submit.prevent="handleChangePassword" class="space-y-3"><input type="password" v-model="passwordForm.oldPassword" placeholder="旧密码" class="w-full px-3 py-2 border rounded"><input type="password" v-model="passwordForm.newPassword" placeholder="新密码" class="w-full px-3 py-2 border rounded"><input type="password" v-model="passwordForm.confirmPassword" placeholder="确认新密码" class="w-full px-3 py-2 border rounded"><button class="w-full py-2 bg-gray-900 text-white rounded">确认</button></form>
+                    <div class="flex items-center gap-3 mb-5">
+                        <span class="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 text-white flex items-center justify-center text-xl shadow-glow flex-shrink-0"><ion-icon name="key-outline"></ion-icon></span>
+                        <div>
+                            <h3 class="text-lg font-extrabold text-slate-900">修改密码</h3>
+                            <p class="text-xs text-slate-400 mt-0.5">建议定期更换密码以保护账户安全</p>
+                        </div>
+                    </div>
+                    <form @submit.prevent="handleChangePassword" class="space-y-4">
+                        <input type="password" v-model="passwordForm.oldPassword" placeholder="当前密码" class="w-full px-3.5 py-2.5 border rounded-xl">
+                        <input type="password" v-model="passwordForm.newPassword" placeholder="新密码" class="w-full px-3.5 py-2.5 border rounded-xl">
+                        <input type="password" v-model="passwordForm.confirmPassword" placeholder="确认新密码" class="w-full px-3.5 py-2.5 border rounded-xl">
+                        <button class="btn-primary w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2"><ion-icon name="shield-checkmark-outline"></ion-icon>确认修改</button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -882,6 +985,7 @@
             const getCleanRole = (r) => (r || 'ROLE_USER').replace(/ROLE_/gi, '').toLowerCase();
             const getRoleName = (r) => ({user:'用户',admin:'管理员',superadmin:'超级管理员'}[getCleanRole(r)] || '未知');
             const isOverdue = (d) => new Date(d) < new Date(new Date().toISOString().split('T')[0]);
+            const statusLabel = (s) => ({ borrowed: '借阅中', returned: '已归还', reserved: '已预约', awaiting_pickup: '待取书', overdue: '已逾期' }[s] || s);
             const closeModal = () => { isModalOpen.value=false; selectedFile.value=null; };
             const openBookModal = (b) => { Object.assign(currentBook, b || defaultBook); if(!b) currentBook.id=null; modalType.value='book'; isModalOpen.value=true; };
             const openUserModal = (u) => { Object.assign(currentUserForm, u || {role:'user'}); if(!u) currentUserForm.id=null; modalType.value='user'; isModalOpen.value=true; };
@@ -1054,7 +1158,7 @@
                 handleBorrow, handleReserve, handleRenew, handleReturn, handleProcessReservation,
                 handleSaveBook, handleDeleteBook, handleSaveUser, handleDeleteUser, handleUploadBooks, handleExportExcel, handleExportAnalysis,
                 handleUpdateProfile, handleChangePassword, fetchAuditLogs,
-                getRoleName, isOverdue, isBookBorrowedByUser, isBookReservedByUser, getBookById, getUserById,
+                getRoleName, isOverdue, statusLabel, isBookBorrowedByUser, isBookReservedByUser, getBookById, getUserById,
                 closeModal, openBookModal, openUserModal, handleFileSelect, clearBookSearch, clearErrors
             };
         }
