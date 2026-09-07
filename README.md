@@ -97,7 +97,7 @@ frontend/
 └─ vite.config.js             # 输出 ../src/main/resources/static；dev 代理 :8080
 ```
 
-> 依赖说明：Vue 3、Axios、Tailwind CSS 均已随 Vite 本地打包（不再依赖 CDN）；仅图标库 `ionicons` 仍以 Web Component 方式从 CDN 加载（后续可自托管 SVG 进一步离线化）。
+> 依赖说明：Vue 3、Axios、Tailwind CSS 与图标库 **ionicons 均已本地打包/自托管**（`frontend/public/ionicons`），不再依赖任何 CDN，配合收紧后的 CSP 策略。
 
 
 
