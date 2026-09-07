@@ -13,13 +13,21 @@
     </div>
 </template>
 
-<script setup>
-defineProps({
-    label: { type: String, required: true },
-    value: { type: [String, Number], required: true },
-    icon: { type: String, default: 'ellipse-outline' },
-    iconClass: { type: String, default: 'bg-gradient-to-br from-indigo-500 to-violet-500' },
-    glow: { type: String, default: 'bg-gradient-to-br from-indigo-500 to-violet-500' },
-    valueClass: { type: String, default: 'text-slate-900' }
-})
+<script setup lang="ts">
+withDefaults(
+    defineProps<{
+        label: string
+        value: string | number
+        icon?: string
+        iconClass?: string
+        glow?: string
+        valueClass?: string
+    }>(),
+    {
+        icon: 'ellipse-outline',
+        iconClass: 'bg-gradient-to-br from-indigo-500 to-violet-500',
+        glow: 'bg-gradient-to-br from-indigo-500 to-violet-500',
+        valueClass: 'text-slate-900'
+    }
+)
 </script>

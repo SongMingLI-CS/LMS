@@ -6,9 +6,12 @@
     </div>
 </template>
 
-<script setup>
-defineProps({
-    icon: { type: String, default: 'file-tray-outline' },
-    text: { type: String, default: '暂无数据' }
-})
+<script setup lang="ts">
+withDefaults(
+    defineProps<{
+        icon?: string
+        text?: string
+    }>(),
+    { icon: 'file-tray-outline', text: '暂无数据' }
+)
 </script>

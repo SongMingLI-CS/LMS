@@ -91,7 +91,7 @@
                             <span class="inline-flex items-center gap-1 text-emerald-600 font-bold"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>成功 {{ importResults.success }}</span>
                             <span class="inline-flex items-center gap-1 text-rose-500 font-bold"><span class="w-2 h-2 rounded-full bg-rose-500"></span>失败 {{ importResults.failed }}</span>
                         </div>
-                        <ul v-if="importResults.errors.length" class="mt-2.5 space-y-1 list-disc pl-4 text-rose-500 text-xs"><li v-for="e in importResults.errors">{{ e }}</li></ul>
+                        <ul v-if="importResults.errors.length" class="mt-2.5 space-y-1 list-disc pl-4 text-rose-500 text-xs"><li v-for="(e, idx) in importResults.errors" :key="idx">{{ e }}</li></ul>
                     </div>
                     <div class="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 p-6 text-center hover:border-indigo-300 transition-colors">
                         <ion-icon name="document-attach-outline" class="text-3xl text-slate-300 mb-2"></ion-icon>

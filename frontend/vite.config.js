@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 
@@ -31,5 +31,9 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: false,
     chunkSizeWarningLimit: 1024
+  },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.{js,ts}']
   }
 })

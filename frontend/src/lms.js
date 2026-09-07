@@ -283,7 +283,7 @@ export const useLms = defineStore('lms', () => {
                 handleBorrow, handleReserve, handleRenew, handleReturn, handleProcessReservation,
                 handleSaveBook, handleDeleteBook, handleSaveUser, handleDeleteUser, handleUploadBooks, handleExportExcel, handleExportAnalysis,
                 handleUpdateProfile, handleChangePassword, fetchAuditLogs,
-                getRoleName, isOverdue, statusLabel, isBookBorrowedByUser, isBookReservedByUser, getBookById, getUserById,
+                getCleanRole, getRoleName, isOverdue, statusLabel, isBookBorrowedByUser, isBookReservedByUser, getBookById, getUserById,
                 closeModal, openBookModal, openUserModal, handleFileSelect, clearBookSearch, clearErrors
             };
 })

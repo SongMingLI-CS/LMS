@@ -10,9 +10,12 @@
     </div>
 </template>
 
-<script setup>
-defineProps({
-    title: { type: String, required: true },
-    barClass: { type: String, default: 'from-indigo-500 to-fuchsia-500' }
-})
+<script setup lang="ts">
+withDefaults(
+    defineProps<{
+        title: string
+        barClass?: string
+    }>(),
+    { barClass: 'from-indigo-500 to-fuchsia-500' }
+)
 </script>
