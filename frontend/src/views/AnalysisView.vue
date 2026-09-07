@@ -2,10 +2,11 @@
 <section v-if="currentPage === 'analysis'">
                             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 <div class="glass-card rounded-2xl p-6">
-                                    <div class="flex justify-between items-center mb-5">
-                                        <h3 class="font-bold text-slate-900 flex items-center gap-2"><span class="w-1 h-4 rounded bg-gradient-to-b from-indigo-500 to-fuchsia-500 inline-block"></span>热门图书 Top 5</h3>
-                                        <button @click="handleExportAnalysis('popular-books','pop.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button>
-                                    </div>
+                                    <CardHeader title="热门图书 Top 5" bar-class="from-indigo-500 to-fuchsia-500">
+                                        <template #actions>
+                                            <button @click="handleExportAnalysis('popular-books','pop.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button>
+                                        </template>
+                                    </CardHeader>
                                     <ul class="space-y-4">
                                         <li v-if="popularBooks.length===0" class="text-slate-400 text-sm text-center py-6">暂无数据</li>
                                         <li v-for="(book, idx) in popularBooks" :key="idx" class="text-sm">
@@ -22,7 +23,11 @@
                                 </div>
 
                                 <div class="glass-card rounded-2xl p-6">
-                                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-slate-900 flex items-center gap-2"><span class="w-1 h-4 rounded bg-gradient-to-b from-violet-500 to-fuchsia-500 inline-block"></span>图书分类分布</h3><button @click="handleExportAnalysis('categories','cats.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button></div>
+                                    <CardHeader title="图书分类分布" bar-class="from-violet-500 to-fuchsia-500">
+                                        <template #actions>
+                                            <button @click="handleExportAnalysis('categories','cats.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button>
+                                        </template>
+                                    </CardHeader>
                                     <div class="flex flex-col items-center">
                                         <div class="w-40 h-40 rounded-full border-4 border-white shadow-[0_12px_32px_-12px_rgba(99,102,241,0.45)] mb-5" :style="{ background: pieChartStyle }"></div>
                                         <div class="flex flex-wrap justify-center gap-2">
@@ -33,7 +38,11 @@
                                 </div>
 
                                 <div class="glass-card rounded-2xl p-6 lg:col-span-2">
-                                    <div class="flex justify-between items-center mb-6"><h3 class="font-bold text-slate-900 flex items-center gap-2"><span class="w-1 h-4 rounded bg-gradient-to-b from-sky-400 to-indigo-500 inline-block"></span>借阅高峰时段</h3><button @click="handleExportAnalysis('peak-times','peak.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button></div>
+                                    <CardHeader title="借阅高峰时段" bar-class="from-sky-400 to-indigo-500">
+                                        <template #actions>
+                                            <button @click="handleExportAnalysis('peak-times','peak.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button>
+                                        </template>
+                                    </CardHeader>
                                     <div class="h-52 flex items-end justify-between gap-2 pt-8">
                                         <div v-if="peakTimeStats.length===0" class="w-full text-center text-slate-400 text-sm">暂无数据</div>
                                         <div v-for="slot in peakTimeStats" :key="slot.hourSlot" class="flex-1 flex flex-col items-center group h-full">
@@ -46,7 +55,11 @@
                                 </div>
 
                                 <div class="glass-card rounded-2xl p-6">
-                                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-slate-900 flex items-center gap-2"><span class="w-1 h-4 rounded bg-gradient-to-b from-amber-400 to-rose-400 inline-block"></span>滞销图书 Top 10</h3><button @click="handleExportAnalysis('stagnant-books','stagnant.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button></div>
+                                    <CardHeader title="滞销图书 Top 10" bar-class="from-amber-400 to-rose-400">
+                                        <template #actions>
+                                            <button @click="handleExportAnalysis('stagnant-books','stagnant.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button>
+                                        </template>
+                                    </CardHeader>
                                     <ul class="text-sm">
                                         <li v-for="(b,i) in stagnantBooks" :key="i" class="py-2.5 flex justify-between items-center gap-2 border-b border-slate-100 last:border-0">
                                             <span class="flex items-center gap-2.5 min-w-0"><span class="w-5 h-5 rounded-md bg-slate-100 text-slate-500 text-[11px] font-bold flex items-center justify-center flex-shrink-0">{{ i+1 }}</span><span class="text-slate-600 truncate">{{ b.title }}</span></span>
@@ -56,7 +69,11 @@
                                     </ul>
                                 </div>
                                 <div class="glass-card rounded-2xl p-6">
-                                    <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-slate-900 flex items-center gap-2"><span class="w-1 h-4 rounded bg-gradient-to-b from-emerald-400 to-teal-500 inline-block"></span>活跃读者 Top 5</h3><button @click="handleExportAnalysis('active-users','active.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button></div>
+                                    <CardHeader title="活跃读者 Top 5" bar-class="from-emerald-400 to-teal-500">
+                                        <template #actions>
+                                            <button @click="handleExportAnalysis('active-users','active.xlsx')" class="w-8 h-8 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"><ion-icon name="download-outline"></ion-icon></button>
+                                        </template>
+                                    </CardHeader>
                                     <ul class="text-sm">
                                         <li v-for="(u,i) in activeUsers" :key="i" class="py-2.5 flex justify-between items-center gap-2 border-b border-slate-100 last:border-0">
                                             <span class="flex items-center gap-2.5 min-w-0"><span class="w-5 h-5 rounded-md bg-gradient-to-br from-indigo-400 to-fuchsia-500 text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0">{{ i+1 }}</span><span class="text-slate-700 font-medium truncate">{{ u.name }}</span></span>
@@ -72,8 +89,11 @@
 <script>
 import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
+import CardHeader from '../components/ui/CardHeader.vue'
+
 export default {
   name: 'AnalysisView',
+  components: { CardHeader },
   setup() {
     const s = useLms()
     return { ...s, ...storeToRefs(s) }

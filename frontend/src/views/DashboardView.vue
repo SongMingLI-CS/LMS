@@ -28,47 +28,11 @@
                                 </div>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-7">
-                                <div class="glass-card rounded-2xl p-5 relative overflow-hidden group">
-                                    <div class="absolute -right-8 -top-8 w-28 h-28 rounded-full opacity-25 bg-gradient-to-br from-indigo-500 to-violet-500 blur-2xl group-hover:opacity-40 transition-opacity"></div>
-                                    <div class="relative flex items-center justify-between">
-                                        <div>
-                                            <p class="text-xs font-medium text-slate-500">我的借阅</p>
-                                            <p class="text-3xl font-extrabold text-slate-900 mt-1.5">{{ myBorrowCount }}</p>
-                                        </div>
-                                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center text-[22px] shadow-glow"><ion-icon name="book-outline"></ion-icon></div>
-                                    </div>
-                                </div>
-                                <div class="glass-card rounded-2xl p-5 relative overflow-hidden group">
-                                    <div class="absolute -right-8 -top-8 w-28 h-28 rounded-full opacity-25 bg-gradient-to-br from-amber-400 to-orange-500 blur-2xl group-hover:opacity-40 transition-opacity"></div>
-                                    <div class="relative flex items-center justify-between">
-                                        <div>
-                                            <p class="text-xs font-medium text-slate-500">我的预约</p>
-                                            <p class="text-3xl font-extrabold text-slate-900 mt-1.5">{{ myReservationCount }}</p>
-                                        </div>
-                                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center text-[22px] shadow-glow"><ion-icon name="bookmark-outline"></ion-icon></div>
-                                    </div>
-                                </div>
+                                <StatCard label="我的借阅" :value="myBorrowCount" icon="book-outline" icon-class="bg-gradient-to-br from-indigo-500 to-violet-500" glow="bg-gradient-to-br from-indigo-500 to-violet-500" />
+                                <StatCard label="我的预约" :value="myReservationCount" icon="bookmark-outline" icon-class="bg-gradient-to-br from-amber-400 to-orange-500" glow="bg-gradient-to-br from-amber-400 to-orange-500" />
                                 <template v-if="currentUser.role !== 'user'">
-                                    <div class="glass-card rounded-2xl p-5 relative overflow-hidden group">
-                                        <div class="absolute -right-8 -top-8 w-28 h-28 rounded-full opacity-25 bg-gradient-to-br from-emerald-400 to-teal-500 blur-2xl group-hover:opacity-40 transition-opacity"></div>
-                                        <div class="relative flex items-center justify-between">
-                                            <div>
-                                                <p class="text-xs font-medium text-slate-500">馆藏总数</p>
-                                                <p class="text-3xl font-extrabold text-slate-900 mt-1.5">{{ totalBookCount }}</p>
-                                            </div>
-                                            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex items-center justify-center text-[22px] shadow-glow"><ion-icon name="library-outline"></ion-icon></div>
-                                        </div>
-                                    </div>
-                                    <div class="glass-card rounded-2xl p-5 relative overflow-hidden group">
-                                        <div class="absolute -right-8 -top-8 w-28 h-28 rounded-full opacity-25 bg-gradient-to-br from-rose-500 to-pink-500 blur-2xl group-hover:opacity-40 transition-opacity"></div>
-                                        <div class="relative flex items-center justify-between">
-                                            <div>
-                                                <p class="text-xs font-medium text-slate-500">库存预警</p>
-                                                <p class="text-3xl font-extrabold mt-1.5" :class="lowStockBooks.length>0 ? 'text-rose-500' : 'text-slate-900'">{{ lowStockBooks.length }}</p>
-                                            </div>
-                                            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 text-white flex items-center justify-center text-[22px] shadow-glow"><ion-icon name="alert-circle-outline"></ion-icon></div>
-                                        </div>
-                                    </div>
+                                    <StatCard label="馆藏总数" :value="totalBookCount" icon="library-outline" icon-class="bg-gradient-to-br from-emerald-400 to-teal-500" glow="bg-gradient-to-br from-emerald-400 to-teal-500" />
+                                    <StatCard label="库存预警" :value="lowStockBooks.length" icon="alert-circle-outline" icon-class="bg-gradient-to-br from-rose-500 to-pink-500" glow="bg-gradient-to-br from-rose-500 to-pink-500" :value-class="lowStockBooks.length>0 ? 'text-rose-500' : 'text-slate-900'" />
                                 </template>
                             </div>
                             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -96,8 +60,11 @@
 <script>
 import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
+import StatCard from '../components/ui/StatCard.vue'
+
 export default {
   name: 'DashboardView',
+  components: { StatCard },
   setup() {
     const s = useLms()
     return { ...s, ...storeToRefs(s) }
