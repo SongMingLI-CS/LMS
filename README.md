@@ -88,16 +88,30 @@ java -jar target/lms-backend-0.0.1-SNAPSHOT.jar   # http://localhost:8080
 ```
 frontend/
 ├─ src/
-│  ├─ App.vue                 # 应用根组件（装配 + provide 中央 store）
-│  ├─ lms.js                  # 中央状态与全部业务逻辑（createLmsStore）
+│  ├─ main.js                 # 入口：Pinia + Router
+│  ├─ router.js               # vue-router 路由表 + 角色守卫 + SPA 路径
+│  ├─ App.vue                 # 应用根组件（Shell + 全局浮层）
+│  ├─ lms.js                  # Pinia setup store（useLms：状态/业务逻辑/API）
 │  ├─ style.css               # Tailwind 指令 + 全局玻璃拟态设计体系
-│  ├─ views/                  # DashboardView / AnalysisView / BooksView / RecordsView /
-│  │                          # AuditLogsView / BorrowManageView / ProfileView / UsersView
-│  └─ components/             # AuthShell / Sidebar / TopHeader / ToastStack / Modal
-└─ vite.config.js             # 输出 ../src/main/resources/static；dev 代理 :8080
+│  ├─ views/                  # Dashboard / Analysis / Books / Records / AuditLogs /
+│  │                          # BorrowManage / Profile / Users
+│  ├─ components/             # AuthShell / Sidebar / TopHeader / ToastStack / Modal
+│  │  └─ ui/                  # StatCard / CardHeader / EmptyState（可复用 UI 基元）
+│  └─ __tests__/              # Vitest 单元测试
+├─ public/ionicons/           # ionicons 自托管静态资源（无 CDN）
+└─ vite.config.js             # 输出 ../src/main/resources/static；dev 代理 :8080；Vitest
 ```
 
-> 依赖说明：Vue 3、Axios、Tailwind CSS 与图标库 **ionicons 均已本地打包/自托管**（`frontend/public/ionicons`），不再依赖任何 CDN，配合收紧后的 CSP 策略。
+> 依赖说明：Vue 3、Axios、Tailwind CSS、**ionicons** 均已本地打包/自托管（`frontend/public/ionicons`），不依赖任何 CDN，配合收紧后的 CSP 策略。
+
+**前端质量工具（开发期）：**
+```bash
+cd frontend
+npm run lint         # ESLint（含 vue3-essential）
+npm run type-check   # vue-tsc 类型检查（UI 基元已 TypeScript 化，JS 渐进迁移中）
+npm test             # Vitest 单元测试（store 辅助函数等）
+npm run format       # Prettier 自动格式化
+```
 
 
 
