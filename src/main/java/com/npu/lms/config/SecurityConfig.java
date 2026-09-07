@@ -102,7 +102,7 @@ public class SecurityConfig {
 
 
                         // --- 公开路径 (不变) ---
-                        .requestMatchers("/", "/index.html", "/favicon.ico", "/login", "/register").permitAll()
+                        .requestMatchers("/", "/index.html", "/favicon.ico", "/assets/**", "/analysis", "/books", "/records", "/audit", "/borrow", "/profile", "/users", "/login", "/register").permitAll()
                         .requestMatchers("/register/verify", "/forgot-password", "/reset-password").permitAll()
                         .requestMatchers("/api/auth/refresh", "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/books").permitAll()

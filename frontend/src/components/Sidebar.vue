@@ -12,7 +12,7 @@
 
             <nav class="flex-1 py-4 overflow-y-auto flex flex-col">
                 <p v-if="isSidebarOpen" class="px-5 mb-1.5 text-[10px] font-semibold tracking-[0.2em] text-slate-500 uppercase">主导航</p>
-                <a v-for="page in visiblePages" :key="page.id" href="#" @click.prevent="currentPage = page.id"
+                <a v-for="page in visiblePages" :key="page.id" href="#" @click.prevent="goPage(page.id)"
                    :class="['nav-link', currentPage === page.id ? 'active' : '', isSidebarOpen ? '' : 'justify-center']">
                     <ion-icon :name="page.icon" class="text-[20px] flex-shrink-0" :class="[isSidebarOpen ? 'mr-3' : '']"></ion-icon>
                     <span v-if="isSidebarOpen" class="text-sm whitespace-nowrap">{{ page.title }}</span>
@@ -41,11 +41,22 @@
 </template>
 
 <script>
-import { inject } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useLms } from '../lms'
+import { useRouter } from 'vue-router'
+import { PAGE_PATHS } from '../router.js'
+
 export default {
   name: 'Sidebar',
   setup() {
-    return { ...inject('lms') }
+    const s = useLms()
+    const router = useRouter()
+    function goPage(id) {
+      const target = PAGE_PATHS[id] || '/'
+      if (router.currentRoute.value.path === target) return
+      router.push(target)
+    }
+    return { ...s, ...storeToRefs(s), goPage }
   }
 }
 </script>

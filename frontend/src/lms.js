@@ -1,7 +1,8 @@
 import { ref, reactive, computed, watch } from 'vue'
+import { defineStore } from 'pinia'
 import axios from 'axios'
 
-export function createLmsStore() {
+export const useLms = defineStore('lms', () => {
             // 1. 状态定义
             const currentUser = ref(null);
             const loginForm = reactive({ username: '', password: '' });
@@ -285,4 +286,4 @@ export function createLmsStore() {
                 getRoleName, isOverdue, statusLabel, isBookBorrowedByUser, isBookReservedByUser, getBookById, getUserById,
                 closeModal, openBookModal, openUserModal, handleFileSelect, clearBookSearch, clearErrors
             };
-}
+})

@@ -22,11 +22,13 @@
             <main class="flex-1 flex flex-col overflow-hidden relative">
                 <TopHeader />
                 <div class="flex-1 overflow-x-hidden overflow-y-auto p-6">
-                    <transition name="fade" mode="out-in">
-                        <div :key="currentPage" class="max-w-6xl mx-auto pb-12">
-                            <component :is="currentViewComponent" />
-                        </div>
-                    </transition>
+                    <div class="max-w-6xl mx-auto pb-12">
+                        <RouterView v-slot="{ Component }">
+                            <transition name="fade" mode="out-in">
+                                <component :is="Component" :key="currentPage" />
+                            </transition>
+                        </RouterView>
+                    </div>
                 </div>
             </main>
         </template>
@@ -36,8 +38,10 @@
 </template>
 
 <script setup>
-import { provide, computed } from 'vue'
-import { createLmsStore } from './lms.js'
+import { watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useRoute } from 'vue-router'
+import { useLms } from './lms.js'
 
 import AuthShell from './components/AuthShell.vue'
 import Sidebar from './components/Sidebar.vue'
@@ -45,32 +49,17 @@ import TopHeader from './components/TopHeader.vue'
 import ToastStack from './components/ToastStack.vue'
 import Modal from './components/Modal.vue'
 
-import DashboardView from './views/DashboardView.vue'
-import AnalysisView from './views/AnalysisView.vue'
-import BooksView from './views/BooksView.vue'
-import RecordsView from './views/RecordsView.vue'
-import AuditLogsView from './views/AuditLogsView.vue'
-import BorrowManageView from './views/BorrowManageView.vue'
-import ProfileView from './views/ProfileView.vue'
-import UsersView from './views/UsersView.vue'
+const store = useLms()
+const { currentUser, currentPage, isLoading } = storeToRefs(store)
 
-const store = createLmsStore()
-provide('lms', store)
-
-const currentUser = store.currentUser
-const currentPage = store.currentPage
-const isLoading = store.isLoading
-
-const viewMap = {
-    dashboard: DashboardView,
-    analysis: AnalysisView,
-    manageBooks: BooksView,
-    records: RecordsView,
-    auditLogs: AuditLogsView,
-    manageBorrow: BorrowManageView,
-    profile: ProfileView,
-    manageUsers: UsersView
-}
-const currentViewComponent = computed(() => viewMap[currentPage.value] || DashboardView)
+// 路由 meta.page → 业务页 currentPage（保持 store 内部 watch(currentPage) 逻辑一致）
+const route = useRoute()
+watch(
+    () => route.meta.page,
+    (page) => {
+        if (page && store.currentPage !== page) store.currentPage = page
+    },
+    { immediate: true }
+)
 </script>
 

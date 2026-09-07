@@ -70,11 +70,13 @@
 </template>
 
 <script>
-import { inject } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useLms } from '../lms'
 export default {
   name: 'AnalysisView',
   setup() {
-    return { ...inject('lms') }
+    const s = useLms()
+    return { ...s, ...storeToRefs(s) }
   }
 }
 </script>
