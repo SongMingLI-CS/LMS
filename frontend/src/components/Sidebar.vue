@@ -40,11 +40,11 @@
         </aside>
 </template>
 
-<script>
+<script lang="ts">
 import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
 import { useRouter } from 'vue-router'
-import { PAGE_PATHS } from '../router.js'
+import { PAGE_PATHS } from '../router'
 
 export default {
   name: 'Sidebar',

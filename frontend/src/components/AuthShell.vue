@@ -108,7 +108,7 @@
     </div>
 </template>
 
-<script>
+<script lang="ts">
 import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
 export default {

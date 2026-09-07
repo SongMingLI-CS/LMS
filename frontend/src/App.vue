@@ -37,8 +37,8 @@
     </div>
 </template>
 
-<script setup>
-import { watch } from 'vue'
+<script setup lang="ts">
+import { watch, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { useLms } from './lms.js'
@@ -57,9 +57,17 @@ const route = useRoute()
 watch(
     () => route.meta.page,
     (page) => {
-        if (page && store.currentPage !== page) store.currentPage = page
+        const pid = typeof page === 'string' ? page : ''
+        if (pid && store.currentPage !== pid) store.currentPage = pid
     },
     { immediate: true }
 )
+
+// 会话持久化恢复：刷新/重开页面后如 currentUser 已由 Pinia 恢复，则重新拉取业务数据
+onMounted(() => {
+    if (store.currentUser) {
+        store.fetchAllData()
+    }
+})
 </script>
 

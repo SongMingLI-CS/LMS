@@ -1,6 +1,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import { api, SESSION_KEY } from './api/http.js'
+import { getCleanRole, getRoleName, isOverdue, statusLabel } from './utils/helpers.js'
 
 export const useLms = defineStore('lms', () => {
             // 1. 状态定义
@@ -56,48 +57,7 @@ export const useLms = defineStore('lms', () => {
             const importResults = reactive({ success: 0, failed: 0, errors: [] });
             const chartColors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#6b7280'];
 
-            // 6. API 初始化
-            const api = axios.create({ baseURL: '/', timeout: 8000 });
-            api.interceptors.request.use(config => {
-                const token = localStorage.getItem('token');
-                if (token) config.headers.Authorization = `Bearer ${token}`;
-                return config;
-            });
-
-            // P0: 401 自动刷新访问令牌（共享单次刷新请求，避免并发重复刷新）
-            let refreshPromise = null;
-            api.interceptors.response.use(
-                (response) => response,
-                async (error) => {
-                    const original = error.config;
-                    const status = error.response?.status;
-                    const refreshToken = localStorage.getItem('refreshToken');
-                    if (status === 401 && original && !original._retry && refreshToken) {
-                        original._retry = true;
-                        if (!refreshPromise) {
-                            refreshPromise = axios.post('/api/auth/refresh', { refreshToken }, { baseURL: '/', timeout: 8000 })
-                                .then((res) => {
-                                    localStorage.setItem('token', res.data.token);
-                                    if (res.data.refreshToken) localStorage.setItem('refreshToken', res.data.refreshToken);
-                                    return res.data.token;
-                                })
-                                .finally(() => { refreshPromise = null; });
-                        }
-                        try {
-                            const newToken = await refreshPromise;
-                            original.headers = original.headers || {};
-                            original.headers.Authorization = `Bearer ${newToken}`;
-                            return api(original);
-                        } catch (e) {
-                            localStorage.removeItem('token');
-                            localStorage.removeItem('refreshToken');
-                            window.location.reload();
-                            return Promise.reject(e);
-                        }
-                    }
-                    return Promise.reject(error);
-                }
-            );
+            // 6. API 实例与 401 静默刷新拦截（抽离至 api/http.js，模块级单例）
 
             // 7. 辅助函数
             let toastId = 0;
@@ -107,10 +67,7 @@ export const useLms = defineStore('lms', () => {
                 setTimeout(() => toasts.value = toasts.value.filter(t => t.id !== id), 3000);
             };
             const clearErrors = () => { loginError.value=''; registerError.value=''; };
-            const getCleanRole = (r) => (r || 'ROLE_USER').replace(/ROLE_/gi, '').toLowerCase();
-            const getRoleName = (r) => ({user:'用户',admin:'管理员',superadmin:'超级管理员'}[getCleanRole(r)] || '未知');
-            const isOverdue = (d) => new Date(d) < new Date(new Date().toISOString().split('T')[0]);
-            const statusLabel = (s) => ({ borrowed: '借阅中', returned: '已归还', reserved: '已预约', awaiting_pickup: '待取书', overdue: '已逾期' }[s] || s);
+            // 角色/状态/逾期等纯函数已抽离至 utils/helpers.js（见文件顶部 import）
             const closeModal = () => { isModalOpen.value=false; selectedFile.value=null; };
             const openBookModal = (b) => { Object.assign(currentBook, b || defaultBook); if(!b) currentBook.id=null; modalType.value='book'; isModalOpen.value=true; };
             const openUserModal = (u) => { Object.assign(currentUserForm, u || {role:'user'}); if(!u) currentUserForm.id=null; modalType.value='user'; isModalOpen.value=true; };
@@ -282,8 +239,13 @@ export const useLms = defineStore('lms', () => {
                 handleLogin, handleRegister, handleVerification, handleForgotPassword, handleResetPassword, handleLogout,
                 handleBorrow, handleReserve, handleRenew, handleReturn, handleProcessReservation,
                 handleSaveBook, handleDeleteBook, handleSaveUser, handleDeleteUser, handleUploadBooks, handleExportExcel, handleExportAnalysis,
-                handleUpdateProfile, handleChangePassword, fetchAuditLogs,
+                handleUpdateProfile, handleChangePassword, fetchAllData, fetchAuditLogs,
                 getCleanRole, getRoleName, isOverdue, statusLabel, isBookBorrowedByUser, isBookReservedByUser, getBookById, getUserById,
                 closeModal, openBookModal, openUserModal, handleFileSelect, clearBookSearch, clearErrors
             };
+}, {
+    persist: {
+        key: SESSION_KEY,
+        pick: ['currentUser']
+    }
 })

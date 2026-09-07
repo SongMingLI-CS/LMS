@@ -18,7 +18,7 @@
                                     <tr v-for="book in filteredBooks" :key="book.id" class="hover:bg-indigo-50/40 transition-colors">
                                         <td class="px-6 py-3.5">
                                             <div class="flex items-center">
-                                                <div class="w-10 h-14 bg-slate-100 rounded-md mr-3.5 overflow-hidden ring-1 ring-slate-200 flex-shrink-0"><img :src="book.cover" class="w-full h-full object-cover" @error="$event.target.style.display='none'"></div>
+                                                <div class="w-10 h-14 bg-slate-100 rounded-md mr-3.5 overflow-hidden ring-1 ring-slate-200 flex-shrink-0"><img :src="book.cover" class="w-full h-full object-cover" @error="hideBrokenImg"></div>
                                                 <div class="min-w-0">
                                                     <p class="font-semibold text-slate-800 truncate">{{ book.title }}</p>
                                                     <p v-if="book.category" class="text-[11px] text-slate-400 mt-0.5">{{ book.category }}</p>
@@ -47,14 +47,18 @@
                         </section>
 </template>
 
-<script>
+<script lang="ts">
 import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
 export default {
   name: 'BooksView',
   setup() {
     const s = useLms()
-    return { ...s, ...storeToRefs(s) }
+    const hideBrokenImg = (e: Event) => {
+      const el = e.target as HTMLImageElement | null
+      if (el) el.style.display = 'none'
+    }
+    return { ...s, ...storeToRefs(s), hideBrokenImg }
   }
 }
 </script>

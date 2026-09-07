@@ -86,7 +86,7 @@
                         </section>
 </template>
 
-<script>
+<script lang="ts">
 import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
 import CardHeader from '../components/ui/CardHeader.vue'

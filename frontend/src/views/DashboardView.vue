@@ -57,7 +57,7 @@
                         </section>
 </template>
 
-<script>
+<script lang="ts">
 import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
 import StatCard from '../components/ui/StatCard.vue'
