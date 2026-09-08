@@ -100,10 +100,12 @@ frontend/
 │  │  └─ ui/                  # StatCard / CardHeader / EmptyState / LangSwitch
 │  └─ __tests__/              # Vitest 单测：store 逻辑 + 登录表单/数据表格组件 + i18n
 ├─ public/ionicons/           # ionicons 自托管静态资源（无 CDN）
-└─ vite.config.js             # 输出 ../src/main/resources/static；dev 代理 :8080；Vitest
+├─ public/pwa/                # PWA 图标（npm run icons 重新生成）
+├─ scripts/                   # 工具脚本（gen-pwa-icons.js 纯 Node 生成 PNG 图标）
+└─ vite.config.js             # 输出 ../src/main/resources/static；dev 代理 :8080；Vitest；PWA(SW+manifest)
 ```
 
-> 依赖说明：Vue 3、Vue Router、Pinia、**vue-i18n**（中英文案 + 语言持久化）、Axios、Tailwind CSS、**ionicons** 均已本地打包/自托管（`frontend/public/ionicons`），不依赖任何 CDN，配合收紧后的 CSP 策略。
+> 依赖说明：Vue 3、Vue Router、Pinia、**vue-i18n**（中英文案 + 语言持久化）、Axios、Tailwind CSS、**vite-plugin-pwa**（PWA/离线缓存 + manifest）、**ionicons** 均已本地打包/自托管（`frontend/public/ionicons`），不依赖任何 CDN，配合收紧后的 CSP 策略。
 
 **前端质量工具（开发期）：**
 ```bash

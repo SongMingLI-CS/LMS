@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext .js,.vue",
+    "icons": "node scripts/gen-pwa-icons.js",
     "format": "prettier --write \"src/**/*.{vue,js,ts,css}\"",
     "type-check": "vue-tsc --noEmit",
     "test": "vitest run",
@@ -38,6 +39,7 @@
     "tailwindcss": "^3.4.13",
     "typescript": "^5.9.3",
     "vite": "^5.4.8",
+    "vite-plugin-pwa": "^1.3.0",
     "vitest": "^2.1.9",
     "vue-tsc": "^2.2.12"
   }
