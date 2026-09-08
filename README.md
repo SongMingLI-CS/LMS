@@ -109,7 +109,7 @@ frontend/
 cd frontend
 npm run lint         # ESLint（含 vue3-essential）
 npm run type-check   # vue-tsc 类型检查（UI 基元已 TypeScript 化，JS 渐进迁移中）
-npm test             # Vitest 单元测试（store 辅助函数等）
+npm test             # Vitest 单元测试（store 逻辑 + 登录表单与数据表格等组件渲染）
 npm run format       # Prettier 自动格式化
 ```
 
