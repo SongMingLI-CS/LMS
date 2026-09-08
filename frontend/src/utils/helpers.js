@@ -1,11 +1,13 @@
-// 纯工具函数：角色/状态/逾期 判定与文案映射（不依赖 Vue / Pinia）
+// 纯工具函数：角色/状态/逾期 判定与文案映射（文案经 i18n 本地化，默认中文）
+import { t as translate, has as hasMessage } from '../i18n'
 
 export function getCleanRole(r) {
     return (r || 'ROLE_USER').replace(/ROLE_/gi, '').toLowerCase()
 }
 
 export function getRoleName(r) {
-    return { user: '用户', admin: '管理员', superadmin: '超级管理员' }[getCleanRole(r)] || '未知'
+    const key = getCleanRole(r)
+    return hasMessage(`role.${key}`) ? translate(`role.${key}`) : translate('role.unknown')
 }
 
 export function isOverdue(d) {
@@ -13,13 +15,6 @@ export function isOverdue(d) {
 }
 
 export function statusLabel(s) {
-    return (
-        {
-            borrowed: '借阅中',
-            returned: '已归还',
-            reserved: '已预约',
-            awaiting_pickup: '待取书',
-            overdue: '已逾期'
-        }[s] || s
-    )
+    return hasMessage(`status.${s}`) ? translate(`status.${s}`) : s
 }
+

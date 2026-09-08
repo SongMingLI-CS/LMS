@@ -6,6 +6,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import AuthShell from '../components/AuthShell.vue'
 import { useLms } from '../lms'
 import { api } from '../api/http.js'
+import i18n from '../i18n'
 
 vi.mock('../api/http.js', () => ({
     api: { get: vi.fn(), post: vi.fn() },
@@ -16,7 +17,7 @@ async function mountAuth() {
     const pinia = createPinia()
     setActivePinia(pinia)
     const store = useLms()
-    const wrapper = mount(AuthShell, { global: { plugins: [pinia] } })
+    const wrapper = mount(AuthShell, { global: { plugins: [pinia, i18n] } })
     await flushPromises()
     return { wrapper, store }
 }

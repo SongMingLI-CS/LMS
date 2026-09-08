@@ -88,21 +88,22 @@ java -jar target/lms-backend-0.0.1-SNAPSHOT.jar   # http://localhost:8080
 ```
 frontend/
 ├─ src/
-│  ├─ main.js                 # 入口：Pinia + Router
-│  ├─ router.js               # vue-router 路由表 + 角色守卫 + SPA 路径
+│  ├─ main.js                 # 入口：Pinia + Router + i18n
+│  ├─ router.ts               # vue-router 路由表 + 角色守卫 + SPA 路径
 │  ├─ App.vue                 # 应用根组件（Shell + 全局浮层）
 │  ├─ lms.js                  # Pinia setup store（useLms：状态/业务逻辑/API）
+│  ├─ i18n/                   # vue-i18n（zh-CN / en）文案 + 语言切换与持久化
 │  ├─ style.css               # Tailwind 指令 + 全局玻璃拟态设计体系
 │  ├─ views/                  # Dashboard / Analysis / Books / Records / AuditLogs /
 │  │                          # BorrowManage / Profile / Users
 │  ├─ components/             # AuthShell / Sidebar / TopHeader / ToastStack / Modal
-│  │  └─ ui/                  # StatCard / CardHeader / EmptyState（可复用 UI 基元）
-│  └─ __tests__/              # Vitest 单元测试
+│  │  └─ ui/                  # StatCard / CardHeader / EmptyState / LangSwitch
+│  └─ __tests__/              # Vitest 单测：store 逻辑 + 登录表单/数据表格组件 + i18n
 ├─ public/ionicons/           # ionicons 自托管静态资源（无 CDN）
 └─ vite.config.js             # 输出 ../src/main/resources/static；dev 代理 :8080；Vitest
 ```
 
-> 依赖说明：Vue 3、Axios、Tailwind CSS、**ionicons** 均已本地打包/自托管（`frontend/public/ionicons`），不依赖任何 CDN，配合收紧后的 CSP 策略。
+> 依赖说明：Vue 3、Vue Router、Pinia、**vue-i18n**（中英文案 + 语言持久化）、Axios、Tailwind CSS、**ionicons** 均已本地打包/自托管（`frontend/public/ionicons`），不依赖任何 CDN，配合收紧后的 CSP 策略。
 
 **前端质量工具（开发期）：**
 ```bash

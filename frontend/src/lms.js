@@ -2,6 +2,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { api, SESSION_KEY } from './api/http.js'
 import { getCleanRole, getRoleName, isOverdue, statusLabel } from './utils/helpers.js'
+import { t as translate } from './i18n'
 
 export const useLms = defineStore('lms', () => {
             // 1. 状态定义
@@ -134,20 +135,20 @@ export const useLms = defineStore('lms', () => {
                     if (res.data.refreshToken) localStorage.setItem('refreshToken', res.data.refreshToken);
                     let user = res.data.user; user.role = getCleanRole(user.role);
                     currentUser.value = user; profileForm.name = user.name;
-                    await fetchAllData(); showMessage('欢迎', user.name);
+                    await fetchAllData(); showMessage(translate('toast.welcome'), user.name);
                 } catch(e) {
-                    if(e.response?.data?.message?.includes('激活')) { loginError.value='未激活'; usernameToVerify.value=loginForm.username; isRegistering.value=true; isVerificationStep.value=true; }
-                    else loginError.value = '账号或密码错误';
+                    if(e.response?.data?.message?.includes('激活')) { loginError.value=translate('auth.notActivated'); usernameToVerify.value=loginForm.username; isRegistering.value=true; isVerificationStep.value=true; }
+                    else loginError.value = translate('auth.badCredentials');
                 } finally { isLoading.value = false; }
             };
 
             const handleRegister = async () => {
-                registerError.value=''; if(registerForm.password!==registerForm.confirmPassword) return registerError.value='密码不一致';
+                registerError.value=''; if(registerForm.password!==registerForm.confirmPassword) return registerError.value=translate('auth.pwdMismatch');
                 isLoading.value = true;
                 try { await api.post('/register', registerForm); usernameToVerify.value=registerForm.username; isVerificationStep.value=true; }
-                catch(e) { registerError.value='注册失败'; } finally { isLoading.value=false; }
+                catch(e) { registerError.value=translate('auth.registerFailed'); } finally { isLoading.value=false; }
             };
-            const handleVerification = async () => { isLoading.value=true; try { await api.post('/register/verify', {username:usernameToVerify.value, code:verificationCode.value}); isRegistering.value=false; isVerificationStep.value=false; showMessage('激活成功'); } catch(e){ registerError.value='验证码错误'; } finally { isLoading.value=false; } };
+            const handleVerification = async () => { isLoading.value=true; try { await api.post('/register/verify', {username:usernameToVerify.value, code:verificationCode.value}); isRegistering.value=false; isVerificationStep.value=false; showMessage(translate('toast.activateOk')); } catch(e){ registerError.value=translate('auth.wrongCode'); } finally { isLoading.value=false; } };
 
             const handleLogout = async () => {
                 try { await api.post('/api/auth/logout', { refreshToken: localStorage.getItem('refreshToken') }); } catch(e) {}
@@ -155,18 +156,18 @@ export const useLms = defineStore('lms', () => {
             };
 
             // 操作封装
-            const action = async (fn, msg) => { try { await fn(); showMessage('成功', msg); await fetchAllData(); } catch(e) { showMessage('失败', e.response?.data?.message||'操作失败', 'error'); } };
+            const action = async (fn, msgKey) => { try { await fn(); showMessage(translate('toast.success'), translate(msgKey)); await fetchAllData(); } catch(e) { showMessage(translate('toast.failed'), e.response?.data?.message||translate('toast.operateFailed'), 'error'); } };
 
-            const handleBorrow = (b) => action(() => api.post('/api/records/borrow', {bookId: b.id}), '借阅成功');
-            const handleReserve = (b) => action(() => api.post('/api/records/reserve', {bookId: b.id}), '预约成功');
-            const handleRenew = (r) => action(() => api.put(`/api/records/renew/${r.id}`), '续借成功');
-            const handleReturn = () => action(() => api.post('/api/records/return', {bookIdentifier: returnBookId.value, userId: returnUserId.value||null}), '归还成功');
-            const handleProcessReservation = (r) => action(() => api.post(`/api/records/process-reservation/${r.id}`), '批准成功');
-            const handleDeleteBook = (b) => confirm('删除?') && action(() => api.delete(`/api/books/${b.id}`), '已删除');
-            const handleDeleteUser = (u) => confirm('删除?') && action(() => api.delete(`/api/users/${u.id}`), '已删除');
+            const handleBorrow = (b) => action(() => api.post('/api/records/borrow', {bookId: b.id}), 'toast.borrow');
+            const handleReserve = (b) => action(() => api.post('/api/records/reserve', {bookId: b.id}), 'toast.reserve');
+            const handleRenew = (r) => action(() => api.put(`/api/records/renew/${r.id}`), 'toast.renew');
+            const handleReturn = () => action(() => api.post('/api/records/return', {bookIdentifier: returnBookId.value, userId: returnUserId.value||null}), 'toast.return');
+            const handleProcessReservation = (r) => action(() => api.post(`/api/records/process-reservation/${r.id}`), 'toast.approve');
+            const handleDeleteBook = (b) => confirm(translate('common.deleteConfirm')) && action(() => api.delete(`/api/books/${b.id}`), 'toast.deleted');
+            const handleDeleteUser = (u) => confirm(translate('common.deleteConfirm')) && action(() => api.delete(`/api/users/${u.id}`), 'toast.deleted');
 
-            const handleSaveBook = async () => { try { if(currentBook.id) await api.put(`/api/books/${currentBook.id}`, currentBook); else await api.post('/api/books', currentBook); closeModal(); showMessage('已保存'); await fetchAllData(); } catch(e){} };
-            const handleSaveUser = async () => { try { let u={...currentUserForm}; if(!u.password) delete u.password; if(u.id) await api.put(`/api/users/${u.id}`, u); else await api.post('/api/users', u); closeModal(); showMessage('已保存'); await fetchAllData(); } catch(e){} };
+            const handleSaveBook = async () => { try { if(currentBook.id) await api.put(`/api/books/${currentBook.id}`, currentBook); else await api.post('/api/books', currentBook); closeModal(); showMessage(translate('toast.saved')); await fetchAllData(); } catch(e){} };
+            const handleSaveUser = async () => { try { let u={...currentUserForm}; if(!u.password) delete u.password; if(u.id) await api.put(`/api/users/${u.id}`, u); else await api.post('/api/users', u); closeModal(); showMessage(translate('toast.saved')); await fetchAllData(); } catch(e){} };
 
             const handleUploadBooks = async () => {
                 if(!selectedFile.value) return;
@@ -185,10 +186,10 @@ export const useLms = defineStore('lms', () => {
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
-                    showMessage('成功', '下载已开始');
+                    showMessage(translate('toast.success'), translate('toast.downloadStarted'));
                 } catch (e) {
                     console.error("Download error:", e);
-                    showMessage('失败', '导出失败，请检查网络或权限', 'error');
+                    showMessage(translate('toast.failed'), translate('toast.exportFailed'), 'error');
                 } finally {
                     isLoading.value = false;
                 }
@@ -197,27 +198,27 @@ export const useLms = defineStore('lms', () => {
             const handleExportExcel = () => handleDownload('/api/records/export/excel', 'records.xlsx');
             const handleExportAnalysis = (part, name) => handleDownload(`/api/analysis/export/${part}`, name);
 
-            const handleUpdateProfile = async () => { try { await api.put('/api/profile/me', profileForm); currentUser.value.name=profileForm.name; showMessage('已更新'); } catch(e){} };
-            const handleChangePassword = async () => { try { await api.put('/api/profile/change-password', {oldPassword:passwordForm.oldPassword, newPassword:passwordForm.newPassword}); showMessage('密码已改'); closeModal(); } catch(e){} };
+            const handleUpdateProfile = async () => { try { await api.put('/api/profile/me', profileForm); currentUser.value.name=profileForm.name; showMessage(translate('toast.updated')); } catch(e){} };
+            const handleChangePassword = async () => { try { await api.put('/api/profile/change-password', {oldPassword:passwordForm.oldPassword, newPassword:passwordForm.newPassword}); showMessage(translate('toast.pwdChanged')); closeModal(); } catch(e){} };
             const handleForgotPassword = async () => { try { await api.post('/forgot-password', {email:resetForm.email}); resetForm.codeSent=true; } catch(e){} };
-            const handleResetPassword = async () => { try { await api.post('/reset-password', resetForm); isForgotPassword.value=false; showMessage('密码重置成功'); } catch(e){} };
+            const handleResetPassword = async () => { try { await api.post('/reset-password', resetForm); isForgotPassword.value=false; showMessage(translate('toast.pwdResetOk')); } catch(e){} };
 
             // 计算属性
             const visiblePages = computed(() => {
                 const role = getCleanRole(currentUser.value?.role);
                 const all = [
-                    {id:'dashboard',title:'仪表盘',icon:'grid-outline',roles:['user','admin','superadmin']},
-                    {id:'manageBooks',title:'图书资源',icon:'library-outline',roles:['user','admin','superadmin']},
-                    {id:'records',title:'借阅记录',icon:'reader-outline',roles:['user','admin','superadmin']},
-                    {id:'manageBorrow',title:'借还管理',icon:'swap-horizontal-outline',roles:['admin','superadmin']},
-                    {id:'analysis',title:'数据分析',icon:'stats-chart-outline',roles:['admin','superadmin']},
-                    {id:'manageUsers',title:'用户管理',icon:'people-outline',roles:['superadmin']},
-                    {id:'auditLogs',title:'审计日志',icon:'shield-checkmark-outline',roles:['superadmin']},
-                    {id:'profile',title:'个人中心',icon:'person-outline',roles:['user','admin','superadmin']}
+                    {id:'dashboard',titleKey:'page.dashboard',icon:'grid-outline',roles:['user','admin','superadmin']},
+                    {id:'manageBooks',titleKey:'page.manageBooks',icon:'library-outline',roles:['user','admin','superadmin']},
+                    {id:'records',titleKey:'page.records',icon:'reader-outline',roles:['user','admin','superadmin']},
+                    {id:'manageBorrow',titleKey:'page.manageBorrow',icon:'swap-horizontal-outline',roles:['admin','superadmin']},
+                    {id:'analysis',titleKey:'page.analysis',icon:'stats-chart-outline',roles:['admin','superadmin']},
+                    {id:'manageUsers',titleKey:'page.manageUsers',icon:'people-outline',roles:['superadmin']},
+                    {id:'auditLogs',titleKey:'page.auditLogs',icon:'shield-checkmark-outline',roles:['superadmin']},
+                    {id:'profile',titleKey:'page.profile',icon:'person-outline',roles:['user','admin','superadmin']}
                 ];
                 return all.filter(p => p.roles.includes(role));
             });
-            const currentPageTitle = computed(() => visiblePages.value.find(p=>p.id===currentPage.value)?.title || 'LMS');
+            const currentPageTitle = computed(() => visiblePages.value.find(p=>p.id===currentPage.value)?.titleKey || 'app.title');
 
             const filteredBooks = computed(() => books.value.filter(b => b.title.includes(bookSearchQuery.value) || b.isbn.includes(bookSearchQuery.value)));
             const filteredRecords = computed(() => getCleanRole(currentUser.value?.role)==='user' ? borrowRecords.value.filter(r=>r.userId===currentUser.value.id) : borrowRecords.value);

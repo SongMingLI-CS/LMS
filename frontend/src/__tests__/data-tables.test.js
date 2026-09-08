@@ -8,6 +8,7 @@ import BooksView from '../views/BooksView.vue'
 import RecordsView from '../views/RecordsView.vue'
 import UsersView from '../views/UsersView.vue'
 import BorrowManageView from '../views/BorrowManageView.vue'
+import i18n from '../i18n'
 
 function boot({ page, user, books = [], users = [], records = [] }) {
     const pinia = createPinia()
@@ -22,7 +23,7 @@ function boot({ page, user, books = [], users = [], records = [] }) {
 }
 
 function mountView(Component, pinia) {
-    return mount(Component, { global: { plugins: [pinia] } })
+    return mount(Component, { global: { plugins: [pinia, i18n] } })
 }
 
 const ADMIN = { id: 1, username: 'admin', name: '管理员', role: 'admin' }

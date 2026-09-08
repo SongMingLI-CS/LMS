@@ -5,22 +5,22 @@
                     <ion-icon name="library"></ion-icon>
                 </div>
                 <div v-if="isSidebarOpen" class="ml-3 whitespace-nowrap overflow-hidden">
-                    <p class="font-extrabold text-white tracking-tight text-[15px] leading-tight">LMS 智慧图书馆</p>
+                    <p class="font-extrabold text-white tracking-tight text-[15px] leading-tight">{{ $t('app.title') }}</p>
                     <p class="text-[10px] text-slate-500 tracking-[0.2em] uppercase">Library Mgmt</p>
                 </div>
             </div>
 
             <nav class="flex-1 py-4 overflow-y-auto flex flex-col">
-                <p v-if="isSidebarOpen" class="px-5 mb-1.5 text-[10px] font-semibold tracking-[0.2em] text-slate-500 uppercase">主导航</p>
+                <p v-if="isSidebarOpen" class="px-5 mb-1.5 text-[10px] font-semibold tracking-[0.2em] text-slate-500 uppercase">{{ $t('common.mainNav') }}</p>
                 <a v-for="page in visiblePages" :key="page.id" href="#" @click.prevent="goPage(page.id)"
                    :class="['nav-link', currentPage === page.id ? 'active' : '', isSidebarOpen ? '' : 'justify-center']">
                     <ion-icon :name="page.icon" class="text-[20px] flex-shrink-0" :class="[isSidebarOpen ? 'mr-3' : '']"></ion-icon>
-                    <span v-if="isSidebarOpen" class="text-sm whitespace-nowrap">{{ page.title }}</span>
+                    <span v-if="isSidebarOpen" class="text-sm whitespace-nowrap">{{ $t(page.titleKey) }}</span>
                 </a>
-                <p v-if="isSidebarOpen" class="px-5 mt-3 mb-1.5 text-[10px] font-semibold tracking-[0.2em] text-slate-500 uppercase">数据服务</p>
+                <p v-if="isSidebarOpen" class="px-5 mt-3 mb-1.5 text-[10px] font-semibold tracking-[0.2em] text-slate-500 uppercase">{{ $t('common.dataService') }}</p>
                 <a href="#" @click.prevent="handleExportExcel" :class="['nav-link', isSidebarOpen ? '' : 'justify-center']">
                     <ion-icon name="download-outline" class="text-[20px] flex-shrink-0" :class="[isSidebarOpen ? 'mr-3' : '']"></ion-icon>
-                    <span v-if="isSidebarOpen" class="text-sm whitespace-nowrap">导出借阅记录</span>
+                    <span v-if="isSidebarOpen" class="text-sm whitespace-nowrap">{{ $t('common.exportRecords') }}</span>
                 </a>
             </nav>
 
@@ -34,7 +34,7 @@
                 </div>
                 <button @click="handleLogout" :class="['mt-3 w-full flex items-center py-2 rounded-xl text-slate-400 hover:text-rose-300 hover:bg-white/5 transition-colors', isSidebarOpen ? 'justify-start pl-4' : 'justify-center']">
                     <ion-icon name="log-out-outline" :class="['text-lg', isSidebarOpen ? 'mr-2' : '']"></ion-icon>
-                    <span v-if="isSidebarOpen" class="text-xs">退出登录</span>
+                    <span v-if="isSidebarOpen" class="text-xs">{{ $t('common.logout') }}</span>
                 </button>
             </div>
         </aside>
