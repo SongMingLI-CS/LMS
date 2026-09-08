@@ -40,11 +40,14 @@ const router = createRouter({
 })
 
 // 全局鉴权 + 角色守卫（页面元信息 roles 来自服务端角色体系）
+// '/' 即登录/首页：未登录用户访问 '/' 时放行（由 AuthShell 渲染登录墙），访问其他受保护页时回首页
 router.beforeEach((to) => {
     const lms = useLms()
     const roles = to.meta?.roles as string[] | undefined
     if (!roles) return true
-    if (!lms.currentUser) return { path: '/' }
+    if (!lms.currentUser) {
+        return to.path === '/' ? true : { path: '/' }
+    }
     const role = lms.getCleanRole(lms.currentUser.role)
     if (!roles.includes(role)) return { path: '/' }
     return true
