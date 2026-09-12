@@ -1,11 +1,15 @@
 package com.npu.lms.service;
 
+import com.npu.lms.dto.UserUpsertRequest;
 import com.npu.lms.entity.User;
 import com.npu.lms.repository.UserRepository;
 import com.npu.lms.security.RegisterRequest;
 import com.npu.lms.security.TokenService;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.List; // 引入 List
 import java.util.Optional; // 引入 Optional
 import java.util.Random;
+import java.util.Set;
 
 @Service
 public class UserService {
@@ -95,6 +100,35 @@ public class UserService {
         return userRepository.findAll();
     }
 
+    /** 分页大小上限，防止大响应拖垮接口 */
+    public static final int MAX_PAGE_SIZE = 100;
+
+    /** 允许排序的字段白名单，防止任意属性排序注入 */
+    private static final Set<String> SORTABLE_FIELDS = Set.of("id", "username", "name", "role", "email");
+
+    /**
+     * 用户管理页服务端检索 + 分页（替代“下载全表再由前端过滤”）。
+     */
+    public Page<User> searchUsers(String q, int page, int size, String sort) {
+        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int safePage = Math.max(page, 0);
+        Sort order;
+        if (sort == null || sort.isBlank()) {
+            order = Sort.by(Sort.Direction.ASC, "id");
+        } else {
+            String[] parts = sort.split(",");
+            String field = parts[0].trim();
+            if (!SORTABLE_FIELDS.contains(field)) {
+                field = "id";
+            }
+            Sort.Direction direction = (parts.length > 1 && "desc".equalsIgnoreCase(parts[1].trim()))
+                    ? Sort.Direction.DESC : Sort.Direction.ASC;
+            order = Sort.by(direction, field);
+        }
+        String keyword = (q == null || q.isBlank()) ? null : q.trim();
+        return userRepository.searchUsers(keyword, PageRequest.of(safePage, safeSize, order));
+    }
+
     /**
      * 按 ID 查找用户 (修复了 'FindById' 拼写)
      */
@@ -109,26 +143,99 @@ public class UserService {
         return userRepository.findByUsername(username).orElse(null);
     }
 
+    /** 允许写入的角色白名单（与前端 role 值一致，存储为 ROLE_ 前缀大写形式）。 */
+    private static final Set<String> ALLOWED_ROLES = Set.of("USER", "ADMIN", "SUPERADMIN");
+
+    /**
+     * 归一化角色：接受 "user" / "USER" / "ROLE_USER" 等形式，统一存储为 "ROLE_USER"，
+     * 与数据库既有约定（NotificationService/ScheduledReportService 按 ROLE_ 前缀查询）保持一致。
+     */
+    private String normalizeRole(String role) {
+        String clean = role == null ? "" : role.toUpperCase().replace("ROLE_", "").trim();
+        if (!ALLOWED_ROLES.contains(clean)) {
+            throw new RuntimeException("非法角色：" + role);
+        }
+        return "ROLE_" + clean;
+    }
+
+    private void validateUsername(String username) {
+        if (username == null || username.isBlank()) {
+            throw new RuntimeException("用户名不能为空");
+        }
+    }
+
+    /**
+     * 新增用户 (仅 Superadmin)。密码必填，服务端加密。
+     */
+    @Transactional
+    public User createUser(UserUpsertRequest request) {
+        if (request == null) {
+            throw new RuntimeException("请求体不能为空");
+        }
+        validateUsername(request.getUsername());
+        if (request.getPassword() == null || request.getPassword().isEmpty()) {
+            throw new RuntimeException("新增用户必须设置初始密码");
+        }
+        if (userRepository.findByUsername(request.getUsername().trim()).isPresent()) {
+            throw new RuntimeException("用户名已存在");
+        }
+        String email = request.getEmail() == null ? null : request.getEmail().trim();
+        if (email != null && !email.isEmpty() && userRepository.findByEmail(email).isPresent()) {
+            throw new RuntimeException("邮箱已被使用");
+        }
+
+        User user = new User();
+        user.setUsername(request.getUsername().trim());
+        user.setName(request.getName());
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(normalizeRole(request.getRole() == null ? "USER" : request.getRole()));
+        // 管理端创建的用户视为已激活（无需邮箱验证流程）
+        user.setVerified(true);
+        return userRepository.save(user);
+    }
+
     /**
      * 更新用户信息 (Admin/Superadmin)
      */
     @Transactional
-    public User updateUser(Long id, User userDetails) {
+    public User updateUser(Long id, UserUpsertRequest request) {
         User user = findUserById(id);
         if (user == null) {
             throw new RuntimeException("未找到用户");
         }
+        if (request == null) {
+            throw new RuntimeException("请求体不能为空");
+        }
 
-        // 更新基础信息
-        user.setName(userDetails.getName());
-        user.setUsername(userDetails.getUsername());
-        user.setRole(userDetails.getRole());
-        user.setEmail(userDetails.getEmail()); // 确保 email 也能更新
+        if (request.getUsername() != null && !request.getUsername().isBlank()
+                && !request.getUsername().trim().equals(user.getUsername())) {
+            validateUsername(request.getUsername());
+            if (userRepository.findByUsername(request.getUsername().trim()).isPresent()) {
+                throw new RuntimeException("用户名已存在");
+            }
+            user.setUsername(request.getUsername().trim());
+        }
 
-        // 检查前端是否传入了新密码
-        if (userDetails.getPassword() != null && !userDetails.getPassword().isEmpty()) {
-            // 如果传入了新密码，则加密并更新
-            user.setPassword(passwordEncoder.encode(userDetails.getPassword()));
+        user.setName(request.getName());
+
+        String email = request.getEmail() == null ? null : request.getEmail().trim();
+        if (email != null && !email.isEmpty() && !email.equals(user.getEmail())
+                && userRepository.findByEmail(email).isPresent()) {
+            throw new RuntimeException("邮箱已被使用");
+        }
+        user.setEmail(email);
+
+        if (request.getRole() != null && !request.getRole().isBlank()) {
+            user.setRole(normalizeRole(request.getRole()));
+        }
+
+        // 检查是否传入了新密码
+        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+            // 加密并更新，同时提升令牌版本使旧会话立即失效
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+            user.setTokenVersion(user.getTokenVersion() + 1);
+            tokenService.revokeAllRefreshTokensForUser(user.getUsername());
         }
         // 如果密码为空，则保持数据库中的旧密码不变
 

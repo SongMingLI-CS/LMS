@@ -42,6 +42,9 @@ public class AuditAspect {
     public void updateBookPointcut() {}
 
     // 拦截所有用户创建/更新 (来自 UserController)
+    @Pointcut("execution(* com.npu.lms.service.UserService.createUser(..))")
+    public void createUserPointcut() {}
+
     @Pointcut("execution(* com.npu.lms.service.UserService.updateUser(..))")
     public void saveUserPointcut() {}
 
@@ -89,6 +92,14 @@ public class AuditAspect {
         }
     }
 
+    // 在创建用户成功后记录
+    @AfterReturning(pointcut = "createUserPointcut()", returning = "result")
+    public void logCreateUser(JoinPoint joinPoint, Object result) {
+        if (result instanceof User user) {
+            log(joinPoint, "CREATE_USER", "新增用户: " + user.getUsername() + " (ID: " + user.getId() + ")");
+        }
+    }
+
     // 在保存用户成功后记录
     @AfterReturning(pointcut = "saveUserPointcut()", returning = "result")
     public void logSaveUser(JoinPoint joinPoint, Object result) {
@@ -114,22 +125,32 @@ public class AuditAspect {
 
     // --- 3. 通用日志记录方法 ---
     private void log(JoinPoint joinPoint, String action, String details) {
-        // 获取当前用户名
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-
-        // 获取 IP 地址
-        String ipAddress = "Unknown";
         try {
-            ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-            if (attributes != null) {
-                HttpServletRequest request = attributes.getRequest();
-                ipAddress = request.getRemoteAddr();
-            }
-        } catch (Exception e) {
-            // 忽略 (例如在定时任务中调用时)
-        }
+            // 获取当前用户名（定时任务/匿名上下文可能为 null，必须防御）
+            org.springframework.security.core.Authentication authentication =
+                    SecurityContextHolder.getContext().getAuthentication();
+            String username = (authentication == null || !authentication.isAuthenticated())
+                    ? "system"
+                    : authentication.getName();
 
-        // 异步保存日志
-        auditLogService.logAction(username, action, details, ipAddress);
+            // 获取 IP 地址
+            String ipAddress = "Unknown";
+            try {
+                ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+                if (attributes != null) {
+                    HttpServletRequest request = attributes.getRequest();
+                    ipAddress = request.getRemoteAddr();
+                }
+            } catch (Exception e) {
+                // 忽略 (例如在定时任务中调用时)
+            }
+
+            // 异步保存日志
+            auditLogService.logAction(username, action, details, ipAddress);
+        } catch (Exception e) {
+            // 审计失败绝不允许影响主业务流程（@AfterReturning 抛出的异常会传播给调用方）
+            org.slf4j.LoggerFactory.getLogger(AuditAspect.class)
+                    .warn("写入审计日志失败: action={}, error={}", action, e.getMessage());
+        }
     }
 }
