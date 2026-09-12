@@ -4,6 +4,13 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### 环境变量与密钥 ###
+# 真实密钥只存在于未纳入版本控制的 .env / 环境变量中，模板见 .env.example
+.env
+.env.local
+.env.*.local
+*.log
+
 ### 前端工程化 ###
 /frontend/node_modules/
 /frontend/node/
@@ -37,3 +44,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# ===== 部署包（构建产物，不入库） =====
+lms-deploy*.tar.gz
+
+__pycache__/
