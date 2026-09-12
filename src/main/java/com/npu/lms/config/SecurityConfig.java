@@ -3,6 +3,7 @@ package com.npu.lms.config;
 import com.npu.lms.security.JwtAuthenticationFilter;
 import com.npu.lms.security.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -46,20 +47,20 @@ public class SecurityConfig {
         return builder.build();
     }
 
-    // (CORS 配置保持不变)
+    // (CORS 配置：允许来源通过 app.cors.allowed-origins 配置，默认仅本地开发地址)
+    @Value("${app.cors.allowed-origins:http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173,http://127.0.0.1:5173}")
+    private String allowedOrigins;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList(
-                "http://localhost:8080",
-                "http://127.0.0.1:8080",
-                "http://localhost:63342",
-                "null",
-                "https://*.ngrok.io",
-                "http://*.ngrok.io"
-        ));
+        // 仅在显式配置了通配来源时才使用 pattern 匹配；否则使用精确来源，避免意外放行
+        configuration.setAllowedOriginPatterns(Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList());
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "X-Requested-With"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -114,6 +115,8 @@ public class SecurityConfig {
                         // --- 管理员权限 (ADMIN / SUPERADMIN) ---
                         // --- (新增!) 分析导出 (仅限管理员) ---
                         .requestMatchers("/api/analysis/export/**").hasAnyRole("ADMIN", "SUPERADMIN")
+                        // --- P1: 运营分析读接口同样仅限管理员（原先仅要求登录，普通读者可读全馆运营数据） ---
+                        .requestMatchers(HttpMethod.GET, "/api/books/analysis/**", "/api/records/analysis/**").hasAnyRole("ADMIN", "SUPERADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/books").hasAnyRole("ADMIN", "SUPERADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/books/**").hasAnyRole("ADMIN", "SUPERADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/books/**").hasAnyRole("ADMIN", "SUPERADMIN")

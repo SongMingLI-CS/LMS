@@ -2,6 +2,8 @@ package com.npu.lms.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async; // 引入异步注解
@@ -16,12 +18,18 @@ import java.util.List; // 【新增】
 @Service
 public class EmailService {
 
+    private static final Logger log = LoggerFactory.getLogger(EmailService.class);
+
     @Autowired
     private JavaMailSender mailSender;
 
     // 从 application.properties 中读取“发件人”邮箱地址
     @Value("${spring.mail.username}")
     private String fromEmailAddress;
+
+    /** 是否真正投递邮件；关闭后仅记录日志，便于无 SMTP 凭据的本地环境启动。 */
+    @Value("${app.mail.enabled:true}")
+    private boolean mailEnabled;
 
     /**
      * 发送一封简单的文本邮件
@@ -31,6 +39,10 @@ public class EmailService {
      */
     @Async // 【重要】使用 @Async 使邮件发送在后台线程执行，避免阻塞注册 API
     public void sendSimpleEmail(String toEmail, String subject, String body) {
+        if (!mailEnabled) {
+            log.warn("邮件发送已禁用(app.mail.enabled=false)，跳过投递: to={}, subject={}", toEmail, subject);
+            return;
+        }
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmailAddress);
@@ -39,9 +51,10 @@ public class EmailService {
             message.setText(body);
 
             mailSender.send(message);
+            log.info("邮件已发送: to={}, subject={}", toEmail, subject);
         } catch (Exception e) {
-            // 在生产环境中，这里应该有更健壮的错误处理
-            System.err.println("发送邮件失败: " + e.getMessage());
+            // 投递失败只记录日志：注册/找回密码流程不应因 SMTP 故障整体失败
+            log.error("发送邮件失败: to={}, subject={}, error={}", toEmail, subject, e.getMessage());
         }
     }
 
@@ -56,7 +69,11 @@ public class EmailService {
     @Async // 同样异步执行
     public void sendEmailWithAttachments(List<String> toEmails, String subject, String body, List<EmailAttachment> attachments) {
         if (toEmails == null || toEmails.isEmpty()) {
-            System.err.println("发送邮件失败：收件人列表为空");
+            log.warn("发送邮件失败：收件人列表为空");
+            return;
+        }
+        if (!mailEnabled) {
+            log.warn("邮件发送已禁用(app.mail.enabled=false)，跳过投递: to={}, subject={}", toEmails, subject);
             return;
         }
 
@@ -84,9 +101,11 @@ public class EmailService {
             }
 
             mailSender.send(mimeMessage);
+            log.info("带附件邮件已发送: to={}, subject={}, attachments={}", toEmails, subject,
+                    attachments == null ? 0 : attachments.size());
 
         } catch (MessagingException e) {
-            System.err.println("发送 MIME 邮件失败: " + e.getMessage());
+            log.error("发送 MIME 邮件失败: to={}, subject={}, error={}", toEmails, subject, e.getMessage());
         }
     }
 
@@ -96,7 +115,11 @@ public class EmailService {
     @Async
     public void sendSimpleEmail(List<String> toEmails, String subject, String body) {
         if (toEmails == null || toEmails.isEmpty()) {
-            System.err.println("发送邮件失败：收件人列表为空");
+            log.warn("发送邮件失败：收件人列表为空");
+            return;
+        }
+        if (!mailEnabled) {
+            log.warn("邮件发送已禁用(app.mail.enabled=false)，跳过投递: to={}, subject={}", toEmails, subject);
             return;
         }
 
@@ -109,8 +132,9 @@ public class EmailService {
             message.setText(body);
 
             mailSender.send(message);
+            log.info("群发邮件已发送: to={}, subject={}", toEmails, subject);
         } catch (Exception e) {
-            System.err.println("发送邮件失败: " + e.getMessage());
+            log.error("发送邮件失败: to={}, subject={}, error={}", toEmails, subject, e.getMessage());
         }
     }
 }

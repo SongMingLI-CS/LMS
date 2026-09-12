@@ -1,22 +1,17 @@
 package com.npu.lms.config;
 
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+/**
+ * SPA 路由与视图配置。
+ *
+ * <p>CORS 统一由 {@link SecurityConfig#corsConfigurationSource()} 提供（Security 过滤器链已注册
+ * {@code /**}），此处不再重复配置，避免两处规则不一致。</p>
+ */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
-
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        // 这允许来自 file:// (null), localhost:xxxx 等的前端访问
-        registry.addMapping("/**") // 允许所有路径
-                .allowedOrigins("http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:63342", "null") // 允许的前端地址
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true);
-    }
 
     /**
      * SPA 前端路由回退：/books、/analysis 等客户端路由直链/刷新时，
