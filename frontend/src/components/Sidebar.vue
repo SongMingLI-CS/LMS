@@ -29,7 +29,7 @@
                     <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white flex items-center justify-center text-sm font-bold shadow-glow ring-1 ring-white/20">{{ currentUser.name.charAt(0) }}</div>
                     <div v-if="isSidebarOpen" class="ml-3 overflow-hidden">
                         <p class="text-sm font-semibold text-white truncate">{{ currentUser.name }}</p>
-                        <p class="text-[11px] text-slate-400 truncate flex items-center gap-1.5"><span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>{{ getRoleName(currentUser.role) }}</p>
+                        <p class="text-[11px] text-slate-400 truncate flex items-center gap-1.5"><span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>{{ $t(roleLabelKey(currentUser.role)) }}</p>
                     </div>
                 </div>
                 <button @click="handleLogout" :class="['mt-3 w-full flex items-center py-2 rounded-xl text-slate-400 hover:text-rose-300 hover:bg-white/5 transition-colors', isSidebarOpen ? 'justify-start pl-4' : 'justify-center']">
@@ -41,10 +41,11 @@
 </template>
 
 <script lang="ts">
-import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
 import { useRouter } from 'vue-router'
 import { PAGE_PATHS } from '../router'
+import { bindStore } from '../utils/store-bindings'
+import { roleLabelKey } from '../utils/helpers'
 
 export default {
   name: 'Sidebar',
@@ -56,7 +57,7 @@ export default {
       if (router.currentRoute.value.path === target) return
       router.push(target)
     }
-    return { ...s, ...storeToRefs(s), goPage }
+    return { ...bindStore(s), goPage, roleLabelKey }
   }
 }
 </script>

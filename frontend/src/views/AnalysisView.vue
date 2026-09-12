@@ -87,16 +87,16 @@
 </template>
 
 <script lang="ts">
-import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
 import CardHeader from '../components/ui/CardHeader.vue'
+import { bindStore } from '../utils/store-bindings'
 
 export default {
   name: 'AnalysisView',
   components: { CardHeader },
   setup() {
     const s = useLms()
-    return { ...s, ...storeToRefs(s) }
+    return { ...bindStore(s) }
   }
 }
 </script>

@@ -87,6 +87,10 @@ export default {
         register: '注 册',
         pwdMismatch: '密码不一致',
         registerFailed: '注册失败',
+        locked: '账户已锁定，请稍后再试',
+        tooManyAttempts: '尝试过于频繁，请稍后再试',
+        resetCodeSent: '重置码已发送至邮箱',
+        codeAndPwdRequired: '请输入验证码与新密码',
         verifyTitle: '激活账户',
         verifySent: '验证码已发送至 {email}',
         verifyPh: '· · · · · ·',
@@ -223,7 +227,9 @@ export default {
             old: '当前密码',
             new: '新密码',
             confirm: '确认新密码',
-            doChange: '确认修改'
+            doChange: '确认修改',
+            mismatch: '两次输入的新密码不一致',
+            required: '请填写当前密码与新密码'
         }
     },
     toast: {
@@ -240,6 +246,15 @@ export default {
         updated: '已更新',
         pwdChanged: '密码已改',
         operateFailed: '操作失败',
+        badRequest: '请求参数不合法',
+        unauthorized: '登录已失效，请重新登录',
+        forbidden: '权限不足，无法执行该操作',
+        notFound: '记录不存在或已被删除',
+        conflict: '数据冲突，请检查是否有重复项',
+        serverError: '服务器内部错误，请稍后重试',
+        networkError: '网络异常，请检查连接',
+        retry: '重试',
+        loadFailed: '数据加载失败',
         downloadStarted: '下载已开始',
         exportFailed: '导出失败，请检查网络或权限',
         activateOk: '激活成功',

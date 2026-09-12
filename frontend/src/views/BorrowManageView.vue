@@ -15,8 +15,8 @@
                                     <ul class="space-y-2.5">
                                         <li v-for="res in pendingReservations" :key="res.id" class="flex justify-between items-center p-3 bg-white/60 rounded-xl border border-slate-200/70">
                                             <div class="min-w-0 mr-3">
-                                                <p class="text-sm font-semibold text-slate-800 truncate">{{ getBookById(res.bookId)?.title || $t('common.unknownBook') }}</p>
-                                                <p class="text-xs text-slate-500 mt-0.5 truncate">{{ $t('borrow.reservedBy', { name: getUserById(res.userId)?.name || $t('borrow.userNo', { id: res.userId }) }) }}</p>
+                                                <p class="text-sm font-semibold text-slate-800 truncate">{{ res.bookTitle || getBookById(res.bookId)?.title || $t('common.unknownBook') }}</p>
+                                                <p class="text-xs text-slate-500 mt-0.5 truncate">{{ $t('borrow.reservedBy', { name: res.userName || getUserById(res.userId)?.name || $t('borrow.userNo', { id: res.userId }) }) }}</p>
                                             </div>
                                             <button @click="handleProcessReservation(res)" class="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-semibold hover:brightness-110 transition flex-shrink-0">{{ $t('borrow.approve') }}</button>
                                         </li>
@@ -28,13 +28,13 @@
 </template>
 
 <script lang="ts">
-import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
+import { bindStore } from '../utils/store-bindings'
 export default {
   name: 'BorrowManageView',
   setup() {
     const s = useLms()
-    return { ...s, ...storeToRefs(s) }
+    return { ...bindStore(s) }
   }
 }
 </script>

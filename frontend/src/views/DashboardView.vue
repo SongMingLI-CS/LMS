@@ -13,7 +13,7 @@
                                             <p class="text-sm text-slate-500 mt-1">{{ $t('dash.welcome') }}</p>
                                             <div class="mt-2.5 flex flex-wrap items-center gap-2">
                                                 <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
-                                                    <ion-icon name="shield-checkmark-outline"></ion-icon>{{ getRoleName(currentUser.role) }}
+                                                    <ion-icon name="shield-checkmark-outline"></ion-icon>{{ $t(roleLabelKey(currentUser.role)) }}
                                                 </span>
                                                 <span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
                                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>{{ $t('common.systemOk') }}
@@ -40,7 +40,7 @@
                                     <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2"><span class="w-1 h-4 rounded bg-gradient-to-b from-indigo-500 to-fuchsia-500 inline-block"></span>{{ $t('dash.noticeTitle') }}</h3>
                                     <div class="text-sm text-slate-600 leading-relaxed p-5 bg-white/60 rounded-2xl border border-slate-200/70">
                                         {{ $t('dash.greetBack', { name: currentUser.name }) }}<br />
-                                        {{ $t('dash.yourRole', { role: getRoleName(currentUser.role) }) }}<br />
+                                        {{ $t('dash.yourRole', { role: $t(roleLabelKey(currentUser.role)) }) }}<br />
                                         {{ $t('dash.sysOk') }}
                                     </div>
                                 </div>
@@ -58,16 +58,17 @@
 </template>
 
 <script lang="ts">
-import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
 import StatCard from '../components/ui/StatCard.vue'
+import { bindStore } from '../utils/store-bindings'
+import { roleLabelKey } from '../utils/helpers'
 
 export default {
   name: 'DashboardView',
   components: { StatCard },
   setup() {
     const s = useLms()
-    return { ...s, ...storeToRefs(s) }
+    return { ...bindStore(s), roleLabelKey }
   }
 }
 </script>

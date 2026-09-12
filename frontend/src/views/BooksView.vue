@@ -43,13 +43,18 @@
                                     </tbody>
                                 </table>
                                 </div>
+                                <div class="px-6 py-4 border-t border-slate-200/80 flex items-center justify-between bg-white/40">
+                                    <button @click="loadBooks(bookPage-1)" :disabled="bookPage<=0 || isLoading" class="px-4 py-1.5 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors disabled:opacity-40 disabled:pointer-events-none">{{ $t('audit.prev') }}</button>
+                                    <span class="text-xs text-slate-500 font-medium">{{ $t('common.pageLabel', { page: bookPage+1, total: bookTotalPages }) }} · {{ $t('common.unitVolumes', { n: bookTotalElements }) }}</span>
+                                    <button @click="loadBooks(bookPage+1)" :disabled="bookPage>=bookTotalPages-1 || isLoading" class="px-4 py-1.5 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors disabled:opacity-40 disabled:pointer-events-none">{{ $t('audit.next') }}</button>
+                                </div>
                             </div>
                         </section>
 </template>
 
 <script lang="ts">
-import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
+import { bindStore } from '../utils/store-bindings'
 export default {
   name: 'BooksView',
   setup() {
@@ -58,7 +63,7 @@ export default {
       const el = e.target as HTMLImageElement | null
       if (el) el.style.display = 'none'
     }
-    return { ...s, ...storeToRefs(s), hideBrokenImg }
+    return { ...bindStore(s), hideBrokenImg }
   }
 }
 </script>

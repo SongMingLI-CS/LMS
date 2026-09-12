@@ -87,6 +87,10 @@ export default {
         register: 'Sign Up',
         pwdMismatch: 'Passwords do not match',
         registerFailed: 'Registration failed',
+        locked: 'Account locked, please try again later',
+        tooManyAttempts: 'Too many attempts, please try again later',
+        resetCodeSent: 'A reset code has been sent to your email',
+        codeAndPwdRequired: 'Please enter the code and the new password',
         verifyTitle: 'Activate Account',
         verifySent: 'A code has been sent to {email}',
         verifyPh: '· · · · · ·',
@@ -223,7 +227,9 @@ export default {
             old: 'Current password',
             new: 'New password',
             confirm: 'Confirm new password',
-            doChange: 'Confirm'
+            doChange: 'Confirm',
+            mismatch: 'The two new passwords do not match',
+            required: 'Please fill in the current and the new password'
         }
     },
     toast: {
@@ -240,6 +246,15 @@ export default {
         updated: 'Updated',
         pwdChanged: 'Password changed',
         operateFailed: 'Operation failed',
+        badRequest: 'Invalid request parameters',
+        unauthorized: 'Session expired, please sign in again',
+        forbidden: 'You do not have permission to perform this action',
+        notFound: 'Record not found or already deleted',
+        conflict: 'Data conflict, please check for duplicates',
+        serverError: 'Internal server error, please try again later',
+        networkError: 'Network error, please check your connection',
+        retry: 'Retry',
+        loadFailed: 'Failed to load data',
         downloadStarted: 'Download started',
         exportFailed: 'Export failed. Check your network or permissions.',
         activateOk: 'Account activated',

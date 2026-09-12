@@ -5,7 +5,7 @@
                                     <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 text-white flex items-center justify-center text-2xl font-bold shadow-glow ring-2 ring-white/60">{{ currentUser.name.charAt(0) }}</div>
                                     <div>
                                         <h3 class="text-lg font-extrabold text-slate-900">{{ $t('profile.title') }}</h3>
-                                        <p class="text-sm text-slate-500 mt-0.5">{{ currentUser.username }} · {{ getRoleName(currentUser.role) }}</p>
+                                        <p class="text-sm text-slate-500 mt-0.5">{{ currentUser.username }} · {{ $t(roleLabelKey(currentUser.role)) }}</p>
                                     </div>
                                 </div>
                                 <div class="p-7 sm:p-8 space-y-8">
@@ -27,13 +27,14 @@
 </template>
 
 <script lang="ts">
-import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
+import { bindStore } from '../utils/store-bindings'
+import { roleLabelKey } from '../utils/helpers'
 export default {
   name: 'ProfileView',
   setup() {
     const s = useLms()
-    return { ...s, ...storeToRefs(s) }
+    return { ...bindStore(s), roleLabelKey }
   }
 }
 </script>

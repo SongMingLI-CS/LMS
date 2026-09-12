@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
-// 数据表格视图组件测试：挂载真实视图 + 真实 Pinia store，预置业务数据后断言表格渲染
-import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
+// 数据表格视图组件测试：挂载真实视图 + 真实 Pinia store（仅 mock API 层），
+// 覆盖“服务端检索 + 分页”路径，确认列表不再依赖前端全表过滤。
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { useLms } from '../lms'
 import BooksView from '../views/BooksView.vue'
@@ -9,13 +10,31 @@ import RecordsView from '../views/RecordsView.vue'
 import UsersView from '../views/UsersView.vue'
 import BorrowManageView from '../views/BorrowManageView.vue'
 import i18n from '../i18n'
+import { api } from '../api/http.js'
 
-function boot({ page, user, books = [], users = [], records = [] }) {
+vi.mock('../api/http.js', () => ({
+    api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+    SESSION_KEY: 'lms-session'
+}))
+
+/** 构造后端 Page<T> 响应体 */
+function page(content, { number = 0, totalPages = 1, totalElements = content.length } = {}) {
+    return { data: { content, number, totalPages, totalElements } }
+}
+
+beforeEach(() => {
+    vi.mocked(api.get).mockReset().mockResolvedValue({ data: [] })
+    vi.mocked(api.post).mockReset()
+    vi.mocked(api.put).mockReset()
+    vi.mocked(api.delete).mockReset()
+})
+
+function boot({ page: p, user, books = [], users = [], records = [] }) {
     const pinia = createPinia()
     setActivePinia(pinia)
     const store = useLms()
     store.currentUser = user
-    store.currentPage = page
+    store.currentPage = p
     store.books = books
     store.users = users
     store.borrowRecords = records
@@ -48,25 +67,50 @@ describe('BooksView 图书表格', () => {
         expect(rows[1].text()).toContain('暂无库存')
     })
 
-    it('按关键词过滤图书行', async () => {
-        const { pinia } = boot({
-            page: 'manageBooks',
-            user: ADMIN,
-            books: [
-                { id: 1, title: '三体', author: '刘慈欣', isbn: 'A1', cover: '', available: 1 },
-                { id: 2, title: '活着', author: '余华', isbn: 'B2', cover: '', available: 1 }
-            ]
-        })
+    it('搜索框触发服务端检索：防抖后请求 /api/books/search 并渲染服务端结果', async () => {
+        vi.useFakeTimers()
+        try {
+            const { pinia } = boot({
+                page: 'manageBooks',
+                user: ADMIN,
+                books: [
+                    { id: 1, title: '三体', author: '刘慈欣', isbn: 'A1', cover: '', available: 1 },
+                    { id: 2, title: '活着', author: '余华', isbn: 'B2', cover: '', available: 1 }
+                ]
+            })
+            vi.mocked(api.get).mockResolvedValue(
+                page([{ id: 2, title: '活着', author: '余华', isbn: 'B2', cover: '', available: 1 }])
+            )
+            const wrapper = mountView(BooksView, pinia)
+            await wrapper.find('input').setValue('活着')
+            await vi.advanceTimersByTimeAsync(400)
+            await flushPromises()
+            expect(api.get).toHaveBeenCalledWith('/api/books/search', {
+                params: { q: '活着', page: 0, size: 20, sort: 'id,asc' }
+            })
+            const rows = wrapper.findAll('tbody tr')
+            expect(rows).toHaveLength(1)
+            expect(rows[0].text()).toContain('活着')
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    it('分页：loadBooks 请求指定页并更新页码/总数展示', async () => {
+        const { pinia, store } = boot({ page: 'manageBooks', user: ADMIN, books: [] })
+        vi.mocked(api.get).mockResolvedValue(
+            page([{ id: 21, title: '第二页图书', author: 'x', isbn: 'C3', cover: '', available: 1 }],
+                { number: 1, totalPages: 3, totalElements: 41 })
+        )
         const wrapper = mountView(BooksView, pinia)
-        const search = wrapper.find('input')
-        await search.setValue('活着')
-        let rows = wrapper.findAll('tbody tr')
-        expect(rows).toHaveLength(1)
-        expect(rows[0].text()).toContain('活着')
-        await search.setValue('不存在的书')
-        rows = wrapper.findAll('tbody tr')
-        expect(rows).toHaveLength(1)
-        expect(rows[0].text()).toContain('未找到匹配的图书')
+        await store.loadBooks(1)
+        await flushPromises()
+        expect(api.get).toHaveBeenCalledWith('/api/books/search', {
+            params: { q: undefined, page: 1, size: 20, sort: 'id,asc' }
+        })
+        expect(wrapper.text()).toContain('第二页图书')
+        expect(wrapper.text()).toContain('第 2 / 3 页')
+        expect(wrapper.text()).toContain('41')
     })
 
     it('无图书数据时渲染空态行', () => {
@@ -161,21 +205,33 @@ describe('UsersView 用户表格', () => {
         expect(rows[2].text()).toContain('删除')
     })
 
-    it('按用户名关键词过滤用户行', async () => {
-        const { pinia } = boot({
-            page: 'manageUsers',
-            user: { id: 1, username: 'sroot', name: '系统管理员', role: 'superadmin' },
-            users: [
-                { id: 1, username: 'sroot', name: '系统管理员', role: 'superadmin' },
-                { id: 2, username: 'stu001', name: '张三', role: 'user' }
-            ]
-        })
-        const wrapper = mountView(UsersView, pinia)
-        await wrapper.find('input').setValue('stu001')
-        const rows = wrapper.findAll('tbody tr')
-        expect(rows).toHaveLength(1)
-        expect(rows[0].text()).toContain('张三')
-        expect(wrapper.text()).not.toContain('系统管理员')
+    it('用户搜索走后端接口（不在前端做全表过滤）', async () => {
+        vi.useFakeTimers()
+        try {
+            const { pinia } = boot({
+                page: 'manageUsers',
+                user: { id: 1, username: 'sroot', name: '系统管理员', role: 'superadmin' },
+                users: [
+                    { id: 1, username: 'sroot', name: '系统管理员', role: 'superadmin' },
+                    { id: 2, username: 'stu001', name: '张三', role: 'user' }
+                ]
+            })
+            vi.mocked(api.get).mockResolvedValue(
+                page([{ id: 2, username: 'stu001', name: '张三', role: 'user' }])
+            )
+            const wrapper = mountView(UsersView, pinia)
+            await wrapper.find('input').setValue('stu001')
+            await vi.advanceTimersByTimeAsync(400)
+            await flushPromises()
+            expect(api.get).toHaveBeenCalledWith('/api/users/search', {
+                params: { q: 'stu001', page: 0, size: 20, sort: 'id,asc' }
+            })
+            const rows = wrapper.findAll('tbody tr')
+            expect(rows).toHaveLength(1)
+            expect(rows[0].text()).toContain('张三')
+        } finally {
+            vi.useRealTimers()
+        }
     })
 })
 

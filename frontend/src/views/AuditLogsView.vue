@@ -18,13 +18,13 @@
 </template>
 
 <script lang="ts">
-import { storeToRefs } from 'pinia'
 import { useLms } from '../lms'
+import { bindStore } from '../utils/store-bindings'
 export default {
   name: 'AuditLogsView',
   setup() {
     const s = useLms()
-    return { ...s, ...storeToRefs(s) }
+    return { ...bindStore(s) }
   }
 }
 </script>

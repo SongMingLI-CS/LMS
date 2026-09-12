@@ -21,6 +21,13 @@
             <Sidebar />
             <main class="flex-1 flex flex-col overflow-hidden relative">
                 <TopHeader />
+                <div v-if="loadError" class="mx-6 mt-4 flex items-center justify-between gap-4 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-sm text-rose-600 backdrop-blur">
+                    <span class="flex items-center gap-2 min-w-0">
+                        <ion-icon name="alert-circle-outline" class="text-lg flex-shrink-0"></ion-icon>
+                        <span class="truncate">{{ $t('toast.loadFailed') }}：{{ loadError }}</span>
+                    </span>
+                    <button @click="fetchAllData()" class="flex-shrink-0 px-3.5 py-1.5 rounded-full bg-rose-500 text-white text-xs font-semibold hover:brightness-110 transition">{{ $t('toast.retry') }}</button>
+                </div>
                 <div class="flex-1 overflow-x-hidden overflow-y-auto p-6">
                     <div class="max-w-6xl mx-auto pb-12">
                         <RouterView v-slot="{ Component }">
@@ -50,7 +57,9 @@ import ToastStack from './components/ToastStack.vue'
 import Modal from './components/Modal.vue'
 
 const store = useLms()
-const { currentUser, currentPage, isLoading } = storeToRefs(store)
+const { currentUser, currentPage, isLoading, loadError } = storeToRefs(store)
+// 动作可安全解构（Pinia setup store 的动作已绑定 store 实例）
+const { fetchAllData } = store
 
 // 路由 meta.page → 业务页 currentPage（保持 store 内部 watch(currentPage) 逻辑一致）
 const route = useRoute()
