@@ -1,68 +1,56 @@
-# Docker Compose 文件版本
-version: '3.8'
-
-# 定义所有服务
+# ============================================================
+# LMS 本地/单机部署编排
+#
+# 所有密钥均来自环境变量（可放在同目录的 .env 文件中，已被 .gitignore 忽略）。
+# 请先复制 .env.example 为 .env 并填写真实值，再执行：
+#   docker compose up -d --build
+# ============================================================
 services:
 
-  # 1. 您的后端应用服务 (包含前端 HTML)
+  # 1. 后端应用（内嵌已构建的前端静态资源）
   lms-backend:
-    # 使用当前目录下的 Dockerfile 来构建镜像
     build:
       context: .
       dockerfile: Dockerfile
-      # (关键) 这里传递 JAR 包名称，确保 Dockerfile 能找到它
       args:
-        # 🚨 请注意：这里使用 *.jar 来匹配 target 目录下的 JAR 文件
-        #    如果您的 target 目录有多个 JAR 包，请将其修改为精确的文件名
-        #    例如：JAR_FILE: target/lms-backend-1.0.jar
         JAR_FILE: target/lms-backend-0.0.1-SNAPSHOT.jar
-    
-    # 容器名称
     container_name: lms-backend-container
-    
-    # 端口映射: [云服务器IP]:8080 -> 容器:8080
     ports:
-      - "8080:8080"
-      
-    # 环境变量: 覆盖 application.properties，告诉 Spring Boot 如何连接数据库
-    # 注意：连接地址使用服务名 'mysql-db'
+      - "${BACKEND_PORT:-8080}:8080"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/lms_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=lmsuser
-      - SPRING_DATASOURCE_PASSWORD=lmsuserpassword
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=none # 由 Flyway 版本化迁移管理表结构
-      
-    # 依赖关系: 确保在 mysql-db 启动后再启动此服务
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/${MYSQL_DATABASE:-lms_db}?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-lmsuser}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD 必须设置（见 .env.example）}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none   # 表结构由 Flyway 版本化迁移管理
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 必须设置（见 .env.example）}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      APP_MAIL_ENABLED: ${APP_MAIL_ENABLED:-false}
     depends_on:
-      - mysql-db
-      
-    # 重启策略
+      mysql-db:
+        condition: service_healthy
     restart: always
 
-  # 2. MySQL 数据库服务
+  # 2. MySQL 数据库
   mysql-db:
-    # 使用官方 MySQL 8.0 镜像
     image: mysql:8.0
     container_name: lms-mysql-container
-    
-    # 数据库环境变量:
     environment:
-      MYSQL_DATABASE: lms_db                 # 数据库名
-      MYSQL_ROOT_PASSWORD: @1721420101dcs
-      MYSQL_USER: lmsuser                    # 创建一个新用户
-      MYSQL_PASSWORD: lmsuserpassword        # 新用户的密码
-      
-    # 数据持久化: 将数据存储在云服务器的磁盘上
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-lms_db}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 必须设置（见 .env.example）}
+      MYSQL_USER: ${MYSQL_USER:-lmsuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD 必须设置（见 .env.example）}
     volumes:
       - db-data:/var/lib/mysql
-      
-    # 端口映射 (可选): 映射 3306 端口，方便您用本地工具连接
     ports:
-      - "3306:3306"
-      
-    # 重启策略
+      - "${MYSQL_HOST_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     restart: always
 
-# 定义数据卷 (用于持久化 MySQL 数据)
 volumes:
   db-data:

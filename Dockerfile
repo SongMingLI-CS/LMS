@@ -1,18 +1,21 @@
-# 1. 使用一个轻量级的 Java 21 镜像作为基础
-FROM openjdk:21-jdk-slim
+# 1. 使用轻量级 JRE 21 基础镜像（openjdk:* 官方镜像已停止维护）
+FROM eclipse-temurin:21-jre-jammy
 
-# 2. 暴露 Spring Boot 默认的 8080 端口
-EXPOSE 8080
+# 2. 以非 root 用户运行
+RUN groupadd --system --gid 1001 lms \
+    && useradd --system --uid 1001 --gid lms --create-home lms
 
-# 3. 设定容器内的工作目录
 WORKDIR /app
 
-# 4. (关键) 复制您的 JAR 包到镜像中
-#    这个 ARG JAR_FILE 是为了在构建时接收 JAR 包的路径。
-#    *.jar 确保它能匹配到 target 目录下打包出的 JAR 文件，
-#    如 lms-backend-1.0.jar 或 lms-backend-0.0.1-SNAPSHOT.jar。
+# 3. 复制构建产物（由 mvn package 生成）
 ARG JAR_FILE=target/lms-backend-0.0.1-SNAPSHOT.jar
 COPY ${JAR_FILE} app.jar
 
-# 5. 定义容器启动时运行的命令
-ENTRYPOINT ["java", "-jar", "app.jar"]
+RUN chown -R lms:lms /app
+USER lms
+
+# 4. 暴露 Spring Boot 默认端口
+EXPOSE 8080
+
+# 5. 启动（容器内存感知 + 无颜色输出便于日志采集）
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
